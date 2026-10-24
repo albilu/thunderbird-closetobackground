@@ -45,10 +45,13 @@ class IconTests(unittest.TestCase):
         icons.thunderbird_icon.cache_clear()
         icons.render_icon.cache_clear()
 
-    def test_badge_cap_and_pixel_layout(self):
+    def test_badge_cap(self):
         self.assertEqual(badge_label(0), "")
         self.assertEqual(badge_label(8), "8")
         self.assertEqual(badge_label(100), "99+")
+
+    @unittest.skipUnless(icons.thunderbird_icon(), 'Thunderbird application artwork is not installed')
+    def test_badge_pixel_layout(self):
         zero, unread = argb_pixmaps(0), argb_pixmaps(12)
         self.assertNotEqual(zero, unread)
         for width, height, data in unread:
