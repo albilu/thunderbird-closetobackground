@@ -1,0 +1,39 @@
+.TH THUNDERBIRD-CLOSETOBACKGROUND-DOCTOR 1 "2026-10-24" "Close to Background" "User Commands"
+.SH NAME
+thunderbird-closetobackground-doctor \- check the Thunderbird tray helper and desktop
+.SH SYNOPSIS
+.B thunderbird-closetobackground-doctor
+.RB [ --installation-only ]
+.RB [ --user-home " directory" ]
+.RB [ --system-root " directory" ]
+.SH DESCRIPTION
+Checks native messaging registration, the executable, automatic add-on policy, Python GI bindings, and
+the active StatusNotifier tray host. Does not change desktop or Thunderbird settings.
+A per-user native manifest takes precedence over the Debian system manifest.
+.SH OPTIONS
+.TP
+.B --installation-only
+Check the installed files without connecting to the desktop session bus.
+.TP
+.B --user-home directory
+Check a different user directory. The default is the current user's home.
+.TP
+.B --system-root directory
+Inspect an extracted Debian package beneath a staging root. The default is /.
+Paths inside its manifest are interpreted relative to that root for this check.
+.SH EXIT STATUS
+0 means all requested checks passed. 1 means a check failed.
+.SH FILES
+.I /usr/share/thunderbird-closetobackground/thunderbird-closetobackground.xpi
+.br
+Thunderbird automatically installs or updates this file on its next start
+using the policy configured by the Debian package.
+.PP
+.I /etc/thunderbird/policies/policies.json
+.br
+System policy, unless an existing application distribution policy was used.
+.SH SEE ALSO
+.BR thunderbird (1),
+.BR dpkg (1)
+.PP
+/usr/share/doc/thunderbird-closetobackground/README.Debian

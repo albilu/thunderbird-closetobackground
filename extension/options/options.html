@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Close to Background · Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main>
+  <header><img src="../icons/mail.svg" width="54" height="54" alt="">
+    <div><p class="eyebrow">THUNDERBIRD · LINUX</p><h1>Close to Background</h1></div></header>
+  <p class="intro">Keep your mail close, and your desktop clear.</p>
+
+  <section class="status-panel" aria-labelledby="status-title">
+    <span id="status-dot" class="dot" aria-hidden="true"></span>
+    <div><h2 id="status-title">Connecting…</h2><p id="status-detail">Checking the tray helper.</p></div>
+    <span id="unread" class="count" title="Unread messages">—</span>
+  </section>
+  <p id="diagnostics" class="warning" hidden></p>
+
+  <form id="settings" aria-label="Background settings">
+    <section class="card">
+      <label class="setting master"><span><strong>Enable Close to Background</strong><small>Keep Thunderbird running when its main windows are hidden.</small></span>
+        <input type="checkbox" name="enabled" role="switch"></label>
+      <div id="dependent-settings">
+        <label class="setting"><span><strong>Close to tray</strong><small>The window’s close button sends it to the tray.</small></span>
+          <input type="checkbox" name="closeToTray" role="switch"></label>
+        <label class="setting"><span><strong>Minimize to tray</strong><small>Thunderbird’s minimize button sends mail windows to the tray.</small></span>
+          <input type="checkbox" name="minimizeToTray" role="switch"></label>
+        <label class="setting"><span><strong>Unread badge</strong><small>A combined count across your mail accounts. Large totals display as 99+.</small></span>
+          <input type="checkbox" name="showUnread" role="switch"></label>
+        <label class="setting"><span><strong>New-mail notifications</strong><small>A quiet heads-up, without sender names or message subjects.</small></span>
+          <input type="checkbox" name="notifications" role="switch"></label>
+      </div>
+    </section>
+    <p id="save-status" class="save-status" role="status" aria-live="polite">Settings save automatically.</p>
+  </form>
+
+  <section class="actions" aria-label="Try it">
+    <button id="hide" class="primary" disabled>Send to tray</button>
+    <button id="restore">Show Thunderbird</button>
+    <button id="testNotification" disabled>Test notification</button>
+    <button id="retry">Reconnect helper</button>
+  </section>
+  <p id="action-status" role="status" aria-live="polite"></p>
+
+  <section class="help">
+    <h2>A home in your top bar</h2>
+    <p>Use the tray icon or its <strong>Show Thunderbird</strong> menu item to bring your mail back. On GNOME, a single click may open the menu; double-click or middle-click restores the window.</p>
+    <p>Choose <strong>Quit Thunderbird</strong> in the tray, or use Thunderbird’s usual Quit command, to exit completely. Compose windows and unsaved drafts keep their normal behavior.</p>
+    <details><summary>Setup &amp; troubleshooting</summary>
+      <p>This add-on needs the companion tray helper and an active GNOME
+        <a href="https://extensions.gnome.org/extension/615/appindicator-support/" target="_blank" rel="noreferrer">AppIndicator extension</a>.
+        Follow the README included with your download to install the helper.</p>
+      <p>If the helper or tray is unavailable, windows keep their normal behavior. Hidden windows are restored automatically if the connection is lost.</p>
+      <p>On Wayland, desktop-level minimize shortcuts may minimize normally. Use Thunderbird’s minimize button, close button, or “Send to tray” for background mode.</p>
+      <p>To avoid duplicate alerts, turn off Thunderbird’s built-in “Show an alert” option in its incoming-mail settings. This add-on does not change that preference.</p>
+      <p>The badge excludes Junk, Trash, Sent, Drafts, Templates, Outbox, their subfolders, and duplicate virtual folders. It updates as Thunderbird syncs your mail.</p>
+    </details>
+  </section>
+  <footer>Local by design. No telemetry, accounts, or cloud service.</footer>
+</main>
+<script type="module" src="options.mjs"></script>
+</body>
+</html>

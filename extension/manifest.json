@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "name": "Close to Background",
+  "version": "0.1.4",
+  "description": "Keep Thunderbird running in the Linux system tray, with unread badges and new-mail notifications.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "closetobackground@thunderbird-background.local",
+      "strict_min_version": "128.0",
+      "strict_max_version": "153.*"
+    }
+  },
+  "permissions": ["accountsRead", "messagesRead", "nativeMessaging", "notifications", "storage"],
+  "background": {"page": "background.html", "persistent": true},
+  "icons": {"32": "icons/mail.svg", "64": "icons/mail.svg"},
+  "options_ui": {"page": "options/options.html", "open_in_tab": true},
+  "experiment_apis": {
+    "backgroundWindows": {
+      "schema": "experiments/backgroundWindows/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["backgroundWindows"]],
+        "script": "experiments/backgroundWindows/api.js"
+      }
+    }
+  }
+}

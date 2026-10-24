@@ -1,0 +1,22 @@
+Package: thunderbird-closetobackground
+Version: @DEBIAN_VERSION@
+Section: mail
+Priority: optional
+Architecture: all
+Maintainer: @MAINTAINER@
+Installed-Size: @INSTALLED_SIZE@
+Depends: python3 (>= 3.10), python3-gi, gir1.2-glib-2.0, gir1.2-gdkpixbuf-2.0
+Suggests: thunderbird (>= 128), gnome-shell-extension-appindicator
+@HOMEPAGE@Description: Thunderbird close-to-tray helper and add-on for Linux
+ Keep Thunderbird running in the system tray with unread badges and
+ new-mail notifications. Supports GNOME with an AppIndicator extension,
+ including native Wayland sessions, and other StatusNotifierItem hosts.
+ .
+ This package installs the native helper and configures Thunderbird to
+ install/update the bundled add-on automatically on its next start.
+ Users can disable the add-on. Existing unrelated policies are preserved.
+ It does not edit user profiles or enable GNOME extensions automatically.
+ .
+ Native Thunderbird 128 through 153 is required. Flatpak and Snap builds
+ are not supported. On Wayland, use Thunderbird's own minimize button;
+ compositor-only minimize shortcuts keep their usual behavior.

@@ -1,0 +1,55 @@
+Close to Background for Debian/Ubuntu
+====================================
+
+This package contains the native tray helper and a matching Thunderbird add-on.
+After installing the package:
+
+1. Install and enable GNOME AppIndicator support (or another compatible tray).
+2. Start or restart Thunderbird. It installs the bundled XPI automatically.
+3. Open the add-on preferences. "Your tray is ready" confirms the connection.
+4. Run thunderbird-closetobackground-doctor if setup is incomplete.
+
+Use native Thunderbird 128-153, not Flatpak or Snap. GNOME Wayland is supported.
+Wayland desktop/compositor minimize shortcuts cannot be observed by the add-on;
+use Thunderbird's own minimize button, close button, or Send to tray instead.
+
+Migrating from the tarball
+-------------------------
+An existing per-user native manifest overrides this system installation.
+Disable the add-on, run ./uninstall.sh from the old extracted tarball as your
+normal user, install/update this package, restart Thunderbird, then re-enable
+the add-on if you previously disabled it.
+The diagnostic command reports any user override, including broken ones.
+The Debian installer deliberately never deletes files from user home directories.
+
+Updates and removal
+-------------------
+After a package upgrade, restart Thunderbird. The local-file extension policy
+installs newer bundled XPI versions automatically and preserves disabled state.
+Use apt remove to remove the helper and restore the policy. Restart Thunderbird
+to release policy management, then remove the remaining profile copy in Add-ons
+and Themes if desired. Package scripts never edit or delete user profiles.
+Without a helper the add-on leaves mail windows visible.
+
+Automatic installation
+----------------------
+The package uses ExtensionSettings/normal_installed with a local file URL.
+The add-on can be disabled, but cannot be removed while the policy is active.
+Updates come from this package rather than a separate add-on update server.
+This applies to profiles using the installation's policies. Installing the
+package authorizes the add-on's unrestricted-access Experiment API; there is
+no separate interactive XPI permission prompt. No network download is needed.
+
+The maintainer scripts merge only this add-on's entry into
+/etc/thunderbird/policies/policies.json, or an existing
+/usr/lib/thunderbird/distribution/policies.json when no system policy exists.
+They preserve other entries and restore the original bytes if no other changes
+were made. Later administrator edits are preserved. Recovery information is
+stored privately in /var/lib/thunderbird-closetobackground/policy-state.json.
+Invalid policies and conflicting policies for this add-on stop configuration
+with an error instead of being overwritten. After resolving a conflict, run
+sudo dpkg-reconfigure thunderbird-closetobackground.
+There are no services or autostart entries, and GNOME settings are unchanged.
+
+See /usr/share/doc/thunderbird-closetobackground/README.md and docs/packaging.md
+for installation, reproducible builds, checksums, and release instructions.

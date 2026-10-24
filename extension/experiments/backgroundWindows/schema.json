@@ -1,0 +1,21 @@
+[
+  {
+    "namespace": "backgroundWindows",
+    "description": "Linux main-window visibility with fail-safe cleanup.",
+    "functions": [
+      {
+        "name": "configure",
+        "type": "function",
+        "async": true,
+        "parameters": [{"name": "configuration", "type": "object", "properties": {
+          "enabled": {"type": "boolean"},
+          "closeToTray": {"type": "boolean"},
+          "minimizeToTray": {"type": "boolean"}
+        }}]
+      },
+      {"name": "hideAll", "type": "function", "async": true, "parameters": []},
+      {"name": "restoreAll", "type": "function", "async": true, "parameters": []},
+      {"name": "quit", "type": "function", "async": true, "parameters": []}
+    ]
+  }
+]
