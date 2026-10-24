@@ -18,7 +18,30 @@ ships no tray protocol at all. **thunderbird-closetobackground** sends the
 window to a tray icon instead: mail keeps checking, unread mail shows a badge,
 and the window silently keeps running.
 
-## Requirements
+## Features
+
+- **Close to tray and minimize to tray** for main mail windows (new windows
+  too). Compose windows, message viewers, and dialogs are never intercepted.
+- **Restore** from the tray menu, direct activation, or by launching
+  Thunderbird again; hidden windows keep size, position, and maximized state.
+- **Unread badge** summed across folders — Junk, Trash, Sent, Drafts, and
+  similar are excluded — shown up to **99+** on Thunderbird's real icon.
+- **Optional grouped new-mail notifications**, off by default, with Thunderbird's
+  original icon and generic text. Senders, subjects, and account names never leave
+  Thunderbird. Clicking restores the window. Existing saved preferences are kept.
+- **Settings** in the tray's **Settings…** menu or add-on preferences, saved
+  per profile. Turning the feature off restores hidden windows immediately.
+- **Wayland-native**: hiding happens inside Thunderbird, without `wmctrl`,
+  `xdotool`, or X11 window IDs.
+
+Fail-safe by design: if the helper dies (immediately via EOF, within about
+40 seconds without a heartbeat), the tray disappears, or the add-on is
+disabled, hidden windows are restored. **Quit** (tray or Ctrl+Q) always uses
+Thunderbird's normal shutdown path.
+
+
+<details>
+<summary><strong>Requirements</strong></summary>
 
 - **Linux** with a desktop session bus (GNOME is the primary target).
 - **Thunderbird 128–153** as a native distro package or Mozilla tarball.
@@ -27,6 +50,8 @@ and the window silently keeps running.
   (`python3-gi`, `gir1.2-glib-2.0`, `gir1.2-gdkpixbuf-2.0` on Debian/Ubuntu).
 - A StatusNotifier/AppIndicator tray host; on GNOME, enable
   [AppIndicator and KStatusNotifierItem Support](https://extensions.gnome.org/extension/615/appindicator-support/).
+
+</details>
 
 ## Install
 
@@ -61,28 +86,9 @@ confirm **Your tray is ready**. The installer needs no root and touches no
 profiles. Disable the add-on, then remove with `./uninstall.sh`; source
 checkouts use `python3 scripts/install.py --uninstall`.
 
-## Features
 
-- **Close to tray and minimize to tray** for main mail windows (new windows
-  too). Compose windows, message viewers, and dialogs are never intercepted.
-- **Restore** from the tray menu, direct activation, or by launching
-  Thunderbird again; hidden windows keep size, position, and maximized state.
-- **Unread badge** summed across folders — Junk, Trash, Sent, Drafts, and
-  similar are excluded — shown up to **99+** on Thunderbird's real icon.
-- **Optional grouped new-mail notifications**, off by default, with Thunderbird's
-  original icon and generic text. Senders, subjects, and account names never leave
-  Thunderbird. Clicking restores the window. Existing saved preferences are kept.
-- **Settings** in the tray's **Settings…** menu or add-on preferences, saved
-  per profile. Turning the feature off restores hidden windows immediately.
-- **Wayland-native**: hiding happens inside Thunderbird, without `wmctrl`,
-  `xdotool`, or X11 window IDs.
-
-Fail-safe by design: if the helper dies (immediately via EOF, within about
-40 seconds without a heartbeat), the tray disappears, or the add-on is
-disabled, hidden windows are restored. **Quit** (tray or Ctrl+Q) always uses
-Thunderbird's normal shutdown path.
-
-## Troubleshooting
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
 ```sh
 thunderbird-closetobackground-doctor  # Debian package
@@ -98,6 +104,8 @@ thunderbird-closetobackground-doctor  # Debian package
 - **Deeper diagnostics:** Thunderbird's Error Console shows helper stderr.
   Never run the helper directly in a terminal — stdout is reserved for the
   native-messaging protocol.
+
+</details>
 
 ## Development
 
@@ -125,13 +133,6 @@ More details: [design and protocol](docs/design.md),
 temporary add-on development, use **Debug Add-ons → Load Temporary Add-on**
 with `extension/manifest.json`; the helper must be installed separately.
 
-## Keywords
-
-Thunderbird system tray, Thunderbird close to tray, Thunderbird minimize to
-tray, Thunderbird tray icon, Thunderbird close button, Thunderbird unread
-badge, Thunderbird new-mail notifications, GNOME tray icon, StatusNotifierItem,
-AppIndicator, DBusMenu, DBus, Wayland, native messaging, Linux mail client,
-background mode.
 
 ## License
 
