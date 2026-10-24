@@ -124,6 +124,14 @@ More details: [design and protocol](docs/design.md),
 temporary add-on development, use **Debug Add-ons → Load Temporary Add-on**
 with `extension/manifest.json`; the helper must be installed separately.
 
+## Keywords
+
+Thunderbird system tray, Thunderbird close to tray, Thunderbird minimize to
+tray, Thunderbird tray icon, Thunderbird close button, Thunderbird unread
+badge, Thunderbird new-mail notifications, GNOME tray icon, StatusNotifierItem,
+AppIndicator, DBusMenu, DBus, Wayland, native messaging, Linux mail client,
+background mode.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Not affiliated with or endorsed by the

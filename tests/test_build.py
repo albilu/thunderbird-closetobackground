@@ -67,7 +67,7 @@ class BuildTests(unittest.TestCase):
             deb = build(work / 'release', formats=('deb',))['deb']
             control = subprocess.check_output(['dpkg-deb', '--field', str(deb)]).decode()
             for expected in ('Architecture: all', 'Depends: python3 (>= 3.10), python3-gi, gir1.2-glib-2.0, gir1.2-gdkpixbuf-2.0',
-                             f'Package: {PACKAGE_NAME}', 'Maintainer: Local build <root@localhost>'):
+                             f'Package: {PACKAGE_NAME}', f"Maintainer: {release_metadata()[0]['maintainer']}"):
                 self.assertIn(expected, control)
             root = work / 'root'
             subprocess.run(['dpkg-deb', '--raw-extract', str(deb), str(root)], check=True)

@@ -152,9 +152,8 @@ tar, gzip, and Debian metadata use fixed timestamps and permissions. Debian
 archives use xz compression, with no dependency downloads. `SOURCE_DATE_EPOCH`
 can override the release date in `packaging/release.json`.
 
-Local builds are explicitly labeled `Local build <root@localhost>` and omit the
-project homepage until real public metadata is supplied. Before distributing a
-public release, supply the project's actual contact and URL:
+The maintainer and homepage of every artifact come from `packaging/release.json`;
+override them when distributing under different contact data:
 
 ```sh
 python3 scripts/build.py \

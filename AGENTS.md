@@ -34,7 +34,7 @@ All offline: no network, npm dependencies, or real mail accounts. Node ≥18 is 
 
 ## Hard rules and gotchas
 
-- `extension/manifest.json` `version` is the version authority (strict X.Y.Z). `scripts/build.py` refuses to build if `package.json` differs. On a bump, sync `CHANGELOG.md` and `packaging/release.json` (`date`, and `debian_revision` for repackages). Reproducible builds use fixed timestamps from `release.json` (`SOURCE_DATE_EPOCH` override); without `--maintainer`/`--homepage`, builds are labeled `Local build <root@localhost>`.
+- `extension/manifest.json` `version` is the version authority (strict X.Y.Z). `scripts/build.py` refuses to build if `package.json` differs. On a bump, sync `CHANGELOG.md` and `packaging/release.json` (`date`, and `debian_revision` for repackages). Reproducible builds use fixed timestamps from `release.json` (`SOURCE_DATE_EPOCH` overrides the date); `--maintainer`/`--homepage` override the public metadata it carries.
 - Thunderbird support is hard-bounded by manifest `strict_min_version`/`strict_max_version` (128.0–153.*). New major versions need a real compatibility run before raising the bound; the window Experiment targets Thunderbird internals that are version-sensitive.
 - Helper **stdout is reserved for native-messaging frames** — diagnostics go to stderr only. The wire format is length-prefixed JSON, ≤64 KiB, every frame carries `"protocol": 1`; changing it requires updating both sides (`native/protocol.py` ↔ `extension/lib/native-bridge.mjs`).
 - The helper must run under distro `/usr/bin/python3` (packaging/doctor hard-code it) — a venv hides GI bindings (PyGObject/GdkPixbuf). Never run the helper directly in a terminal; stdout would pollute the protocol.

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-24T00:00:00Z",
   "debian_revision": "1",
-  "maintainer": "Local build <root@localhost>",
-  "homepage": null
+  "maintainer": "albilu <albilu@users.noreply.github.com>",
+  "homepage": "https://github.com/albilu/thunderbird-closetobackground"
 }
