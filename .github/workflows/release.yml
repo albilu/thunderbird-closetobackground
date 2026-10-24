@@ -62,8 +62,10 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "thunderbird-closetobackground $VERSION" \
             --notes-file "$notes" || true
-          gh release upload "$GITHUB_REF_NAME" \
-            "dist/$VERSION"/thunderbird-closetobackground_*-all.deb \
-            "dist/$VERSION/thunderbird-closetobackground-$VERSION-linux.tar.gz" \
-            "dist/$VERSION/SHA256SUMS" \
-            --clobber
+          revision="$(python3 -c 'import json; print(json.load(open("packaging/release.json"))["debian_revision"])')"
+          pool="dist/$VERSION"
+          deb="$pool/thunderbird-closetobackground_${VERSION}-${revision}_all.deb"
+          tarball="$pool/thunderbird-closetobackground-${VERSION}-linux.tar.gz"
+          sums="$pool/SHA256SUMS"
+          ls -l "$deb" "$tarball" "$sums"
+          gh release upload "$GITHUB_REF_NAME" "$deb" "$tarball" "$sums" --clobber
