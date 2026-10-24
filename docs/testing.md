@@ -22,14 +22,18 @@ No test needs real accounts or credentials. Builds require no network access.
   titlebar close and native Alt+F4 interception, minimize, restore, actual second
   launches against the same profile, options loading, and tray loss.
 - `npm run test:gnome`: starts a private headless GNOME Wayland compositor, the
-  system AppIndicator extension, and Thunderbird. A tiny inspector extension
-  lives only in a temporary data directory. Checks real window actors, both
+  system AppIndicator and Dash to Dock extensions, and Thunderbird. A tiny
+  inspector extension lives only in a temporary data directory. Checks real window actors, both
   Thunderbird's own titlebar close command and compositor close, and
   minimize commands, tray registration/actions, synthetic local mail counts,
   grouped notifications, mark-read updates, enable/disable preferences, tray loss,
   add-on teardown, and normal Quit. Also starts a real second Thunderbird process
   and activates the private GNOME application launcher, checking restoration of
-  the same window, normal visible-window behavior, and completion of startup.
+  the same window and completion of startup. Exercises Dash to Dock's actual
+  primary-click handler with the **Minimize window** setting: focus an unfocused
+  window, minimize/restore it, restore from the tray, then minimize/restore again.
+  Checks Mutter's actual minimized state and verifies a different dock click
+  setting still focuses without minimizing.
   Uses a freshly built `.deb` by default, or
   `--package <release.deb|release-linux.tar.gz>` to test a specific artifact.
   Debian's XPI is installed automatically by the normal startup policy loader;
@@ -53,6 +57,7 @@ No test needs real accounts or credentials. Builds require no network access.
 
 On 2026-10-24: Thunderbird **153.4.0 ESR**, GNOME Shell **50.4**, the system
 `ubuntu-appindicators@ubuntu.com` extension, Python **3.14.8**, Node **24.21.0**.
+Dash to Dock **106** was used for the configured dock-click checks.
 X11 and GNOME Wayland were tested on disposable virtual displays. Release 0.1.4
 was tested on native GNOME Wayland from both the `.deb` and runtime tarball.
 All 47 unit/package tests, package lifecycle checks and the private D-Bus test
@@ -70,8 +75,10 @@ success but its focus request left the existing window hidden. Version 0.1.4
 restores it on X11 and native Wayland; GNOME launcher activation also completes.
 
 Wayland’s compositor-only minimize action does not send a minimized-state event
-to Thunderbird. The test checks the command used by Thunderbird’s own minimize
-button; desktop minimize shortcuts are a documented limitation, not a passed test.
+to Thunderbird. The test verifies that Dash to Dock minimizes and restores the
+window normally, while Thunderbird's own minimize button hides it in the tray.
+Converting compositor-only minimization into a tray hide remains a documented
+limitation; compositor minimization itself works.
 
 ## Desktop release checklist
 
@@ -112,7 +119,10 @@ Test each Thunderbird major version before claiming compatibility with it.
 13. Hide Thunderbird and launch it again from a terminal and the desktop/Dash.
     Verify the existing window returns, no duplicate main window appears, and
     the launcher stops showing startup activity. Repeat while already visible
-    and confirm normal desktop focus/minimize behavior.
+    with Dash to Dock's **Minimize window** action: the focused window minimizes
+    and the next click restores it. An unfocused visible window is focused first.
+    Repeat after a tray restore, and check that a focus-only dock action remains
+    focus-only. Use a disposable desktop configuration for changing settings.
 
 Passing unit and isolated integration tests does not establish desktop-specific
 behavior. The GNOME release checklist remains necessary for distribution releases.

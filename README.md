@@ -108,8 +108,10 @@ shell commands; it receives a count/settings and sends fixed tray actions.
   restores windows. GNOME commonly opens a menu on single-click and activates on
   double-click or middle-click; exact gestures depend on the tray extension.
 - Clicking Thunderbird's desktop/Dash launcher or launching Thunderbird again
-  restores its existing hidden mail window. When already visible, normal desktop
-  focus/minimize behavior is retained; the add-on does not toggle it into the tray.
+  restores its existing hidden mail window. Dash to Dock's **Minimize window**
+  click action remains active: click a focused Thunderbird window's icon to
+  minimize it, then click again to restore it. An unfocused visible window is
+  focused first. Other dock click actions follow the dock's settings.
 - The badge sums unread mail across physical folders/accounts, excluding Junk,
   Trash, Sent, Drafts, Templates, Outbox, their descendants, and virtual/unified/tag
   views. It displays up to **99+**; the tray title/settings retain the full count.
@@ -187,7 +189,8 @@ npm run test:packages
 npm run test:policies
 ```
 
-Desktop integration tests (additional system packages are needed):
+Desktop integration tests (additional system packages are needed; the GNOME test
+requires the system AppIndicator and Dash to Dock extensions):
 
 ```sh
 npm run test:thunderbird  # private Xvfb/X11 display; needs xfwm4 and xdotool

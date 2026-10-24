@@ -2,7 +2,8 @@
 """End-to-end test on real headless GNOME Wayland and its AppIndicator extension.
 
 Run: dbus-run-session -- python3 tests/gnome_integration.py
-Requires GNOME Shell 45+, Thunderbird, PyGObject, and a system AppIndicator extension.
+Requires GNOME Shell 45+, Thunderbird, PyGObject, and system AppIndicator and
+Dash to Dock extensions.
 The compositor, preferences, helper, and Thunderbird profile are all disposable.
 """
 
@@ -35,6 +36,9 @@ def main():
     indicator = next((name for name in candidates if (Path('/usr/share/gnome-shell/extensions') / name).is_dir()), None)
     if not indicator:
         raise SystemExit('Install the system GNOME AppIndicator extension before this test.')
+    dock = 'dash-to-dock@micxgx.gmail.com'
+    if not (Path('/usr/share/gnome-shell/extensions') / dock).is_dir():
+        raise SystemExit('Install the system Dash to Dock extension before this test.')
     process = shell = None
     with tempfile.TemporaryDirectory(prefix='thunderbird-gnome-smoke-', ignore_cleanup_errors=True) as directory:
         work = Path(directory)
@@ -65,8 +69,12 @@ def main():
             '[Desktop Entry]\nType=Application\nName=Thunderbird launcher test\n'
             f'Exec="{launcher}"\nIcon=thunderbird\nStartupWMClass=thunderbird-default\n'
             'StartupNotify=true\nTerminal=false\n')
-        for schema, key, value in [('org.gnome.shell', 'enabled-extensions', str([indicator, 'tray-smoke@local'])),
+        for schema, key, value in [('org.gnome.shell', 'enabled-extensions', str([indicator, dock, 'tray-smoke@local'])),
                                    ('org.gnome.shell', 'disable-user-extensions', 'false'),
+                                   ('org.gnome.shell', 'favorite-apps', "['thunderbird.desktop']"),
+                                   ('org.gnome.shell.extensions.dash-to-dock', 'click-action', 'minimize'),
+                                   ('org.gnome.shell.extensions.dash-to-dock', 'show-trash', 'false'),
+                                   ('org.gnome.shell.extensions.dash-to-dock', 'show-mounts', 'false'),
                                    ('org.gnome.desktop.interface', 'enable-animations', 'false')]:
             subprocess.run(['gsettings', 'set', schema, key, value], env=environment, check=True)
 
@@ -210,7 +218,56 @@ def main():
             time.sleep(.5)
             assert visible(), 'Activating a visible window must not send it to the tray'
             print('PASS GNOME Dash activation restores the hidden window and completes startup', flush=True)
-            print('PASS visible launcher activation keeps normal desktop behavior', flush=True)
+            print('PASS visible application activation keeps the window visible', flush=True)
+
+            def dock_state():
+                return json.loads(call('org.gnome.Shell', '/net/thunderbird/TrayTest',
+                                       'net.thunderbird.TrayTest', 'DockState').unpack()[0])
+
+            def click_dash():
+                call('org.gnome.Shell', '/net/thunderbird/TrayTest', 'net.thunderbird.TrayTest', 'ClickDash')
+
+            def dock_minimized():
+                return any(window['title'] == TITLE and window['minimized'] and not window['visible']
+                           for window in windows())
+
+            wait(dock_state, 'Thunderbird icon in the actual Dash to Dock extension')
+            # "Minimize" first focuses an unfocused window, then toggles it.
+            if not dock_state()['focused']:
+                click_dash()
+                wait(lambda: dock_state()['focused'], 'Dash to Dock focuses the visible window')
+                assert visible(), 'The first click should focus an unfocused window'
+            click_dash()
+            wait(dock_minimized, 'Dash to Dock minimizes the focused window')
+            # A compositor minimize retains the window in the dock; it is not
+            # converted into a tray hide on Wayland.
+            assert dock_state()['running'] and dock_state()['windows'] == 1
+            assert not client.script(prelude + 'return controller.windows.get(win).hidden;')
+            click_dash()
+            wait(lambda: visible() and dock_state()['focused'], 'Dash to Dock restores its minimized window')
+            print('PASS Dash to Dock minimize/restore clicks', flush=True)
+            client.script(prelude + 'await api.hideAll(); return true;')
+            wait(lambda: not visible() and not dock_state()['running'], 'hidden before a real dock launch')
+            click_dash()
+            wait(lambda: visible() and dock_state()['focused'], 'Dash to Dock restores and focuses a tray-hidden window')
+            wait(application_ready, 'Dock launch finishes startup')
+            assert client.script(prelude + 'return win.browsingContext.id;') == original_window
+            assert client.script('return [...Services.wm.getEnumerator("mail:3pane")].length;') == 1
+            click_dash()
+            wait(dock_minimized, 'Dash to Dock minimizes a window restored from the tray')
+            click_dash()
+            wait(lambda: visible() and dock_state()['focused'], 'Dash to Dock restores after repeated clicks')
+            print('PASS Dash to Dock tray restore followed by minimize/restore clicks', flush=True)
+
+            # Honor a different dock preference as well. These settings belong
+            # only to this temporary GNOME session, never the user's desktop.
+            subprocess.run(['gsettings', 'set', 'org.gnome.shell.extensions.dash-to-dock',
+                            'click-action', 'focus-or-previews'], env=environment, check=True)
+            wait(lambda: dock_state()['clickAction'] == 'focus-or-previews', 'Dock focus action applied')
+            click_dash()
+            time.sleep(.5)
+            assert visible() and dock_state()['focused'], 'A focus action must not force a minimize toggle'
+            print('PASS Dash to Dock respects its configured focus action', flush=True)
             client.script(prelude + """
               const button = win.document.querySelector('.titlebar-close');
               if (!button) throw new Error('Thunderbird close button is missing');

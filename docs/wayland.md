@@ -11,7 +11,9 @@ the runtime.
 - Thunderbird's own minimize button sends the main window to the tray.
 - The tray's Show action/direct activation restores hidden mail windows.
 - The desktop/Dash launcher and a normal second Thunderbird launch restore the
-  existing hidden window. Visible windows keep normal desktop behavior.
+  existing hidden window. Dash to Dock's **Minimize window** click action
+  minimizes focused Thunderbird and restores it on the next click, including
+  after restoring from the tray. An unfocused visible window is focused first.
 - Unread badges, new-mail notifications, and enable/disable settings work.
 - Disabling the tray extension, losing the helper, or disabling the add-on
   restores hidden windows instead of leaving Thunderbird inaccessible.
@@ -27,13 +29,17 @@ The Wayland compositor does not report its own minimized state to the client.
 Consequently, a GNOME desktop shortcut or compositor window-menu Minimize may
 minimize normally. Thunderbird's button is intercepted before it reaches GTK.
 Use that button, Close to tray, or Send to tray when you want background mode.
+Dash to Dock's minimize click also uses the compositor: it keeps Thunderbird in
+the dock, and another click restores it. The add-on respects the dock's configured
+click action and does not change desktop preferences.
 
 The compositor also controls focus. A restored window may need an extra click
 to receive keyboard focus. Restoration does not bypass Wayland focus policy.
 
 ## Verification
 
-The integration test starts GNOME Shell with `--headless --wayland --no-x11`,
+The integration test requires system AppIndicator and Dash to Dock extensions.
+It starts GNOME Shell with `--headless --wayland --no-x11`,
 removes `DISPLAY`, and starts Thunderbird with `MOZ_ENABLE_WAYLAND=1`. A
 test-only Shell inspector verifies that the actual mail window is a Wayland
 client and observes its visibility; environment variables alone are not accepted
@@ -52,13 +58,16 @@ changed.
 Remoting stays enabled inside the private session: the test starts a real second
 Thunderbird process against the same disposable profile. It also uses GNOME's
 application activation API with a private desktop entry, checks that the existing
-window returns, and waits for the launcher to leave its startup state. Neither
-the real desktop entry nor the user's running Thunderbird is changed.
+window returns, and waits for the launcher to leave its startup state. The
+installed Dash to Dock extension's actual primary-click handler is exercised
+with **Minimize window** and a focus-only setting. Checks cover compositor
+minimize/restore and a tray restore followed by further minimize/restore clicks.
+Neither the real desktop entry nor the user's running Thunderbird is changed.
 
 ```sh
 npm run test:gnome -- --package dist/0.1.4/thunderbird-closetobackground_0.1.4-1_all.deb
 ```
 
-The validated baseline is Thunderbird 153.4.0 ESR, GNOME Shell 50.4, and the
-system Ubuntu AppIndicators extension. Other supported Thunderbird versions and
-desktop distributions still need the [manual release checklist](testing.md).
+The validated baseline is Thunderbird 153.4.0 ESR, GNOME Shell 50.4, Dash to Dock
+106, and the system Ubuntu AppIndicators extension. Other supported Thunderbird
+versions and desktop distributions still need the [manual release checklist](testing.md).
