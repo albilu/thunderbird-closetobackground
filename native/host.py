@@ -16,7 +16,7 @@ def main():
         from gi.repository import GLib
         from tray import Tray
     except (ImportError, ValueError) as error:
-        writer.send({"type": "error", "message": "Install Python 3 PyGObject and GLib/GdkPixbuf introspection (python3-gi, gir1.2-glib-2.0, gir1.2-gdkpixbuf-2.0 on Debian/Ubuntu)."})
+        writer.send({"type": "error", "messageKey": "helperDependencies", "message": "Install Python 3 PyGObject and GLib/GdkPixbuf introspection (python3-gi, gir1.2-glib-2.0, gir1.2-gdkpixbuf-2.0 on Debian/Ubuntu)."})
         print(f"Close to Background: {error}", file=sys.stderr)
         return 1
 
@@ -31,7 +31,7 @@ def main():
     try:
         tray = Tray(send)
     except Exception as error:
-        send({"type": "error", "message": "Unable to connect to the desktop session bus. Start Thunderbird inside your desktop session."})
+        send({"type": "error", "messageKey": "helperSessionBus", "message": "Unable to connect to the desktop session bus. Start Thunderbird inside your desktop session."})
         print(f"Close to Background: {error}", file=sys.stderr)
         return 1
 
@@ -39,12 +39,12 @@ def main():
         try:
             tray.receive(message)
         except (ProtocolError, ValueError) as error:
-            send({"type": "error", "message": str(error)})
+            send({"type": "error", "messageKey": "helperProtocolError", "message": str(error)})
             loop.quit()
         return GLib.SOURCE_REMOVE
 
     def failed(message):
-        send({"type": "error", "message": message})
+        send({"type": "error", "messageKey": "helperProtocolError", "message": message})
         loop.quit()
         return GLib.SOURCE_REMOVE
 

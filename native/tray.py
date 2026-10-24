@@ -5,7 +5,7 @@ import os
 from gi.repository import Gio, GLib
 
 from icons import argb_pixmaps
-from protocol import ProtocolError, VERSION
+from protocol import ProtocolError, VERSION, tray_strings
 
 SNI = "org.kde.StatusNotifierItem"
 MENU = "com.canonical.dbusmenu"
@@ -22,6 +22,7 @@ class Tray:
         self.show_unread = True
         self.unread = 0
         self.incomplete = False
+        self.strings = {}
         self.available = False
         self.handshake = False
         self.watcher_owner = None
@@ -44,7 +45,7 @@ class Tray:
                                                      Gio.DBusSignalFlags.NONE, self.watcher_signal)
         self.retry_timer = GLib.timeout_add_seconds(5, self.retry_registration)
 
-    def status(self, available, message):
+    def status(self, available, message, message_key):
         changed = self.available != available
         self.available = available
         if changed:
@@ -52,7 +53,7 @@ class Tray:
             self.bus.emit_signal(None, MENU_PATH, MENU, "LayoutUpdated",
                                  GLib.Variant("(ui)", (self.revision, 0)))
         if self.handshake:
-            self.send({"type": "status", "available": available, "message": message})
+            self.send({"type": "status", "available": available, "message": message, "messageKey": message_key})
 
     def watcher_appeared(self, _connection, _name, owner):
         self.watcher_owner = owner
@@ -65,16 +66,16 @@ class Tray:
 
     def name_lost(self, _connection, _name):
         self.name_ready = False
-        self.status(False, "The tray helper lost its desktop connection.")
+        self.status(False, "The tray helper lost its desktop connection.", "helperDesktopLost")
 
     def watcher_vanished(self, _connection, _name):
         self.watcher_owner = None
         self.registering = False
-        self.status(False, "No system tray found. Enable GNOME AppIndicator support.")
+        self.status(False, "No system tray found. Enable GNOME AppIndicator support.", "helperTrayMissing")
 
     def watcher_signal(self, _connection, _sender, _path, _interface, signal, _parameters):
         if signal == "StatusNotifierHostUnregistered":
-            self.status(False, "The desktop tray is unavailable. Windows have been restored.")
+            self.status(False, "The desktop tray is unavailable. Windows have been restored.", "helperTrayLost")
         if signal in ("StatusNotifierHostRegistered", "StatusNotifierHostUnregistered"):
             self.register()
 
@@ -95,14 +96,14 @@ class Tray:
             try:
                 if not connection.call_finish(result).unpack()[0]:
                     self.registering = False
-                    self.status(False, "A tray watcher exists, but no desktop tray is active.")
+                    self.status(False, "A tray watcher exists, but no desktop tray is active.", "helperTrayInactive")
                     return
                 connection.call(owner, WATCHER_PATH, WATCHER, "RegisterStatusNotifierItem",
                                 GLib.Variant("(s)", (self.service_name,)), None, Gio.DBusCallFlags.NONE,
                                 3000, None, registered)
             except GLib.Error:
                 self.registering = False
-                self.status(False, "Could not contact the desktop tray. Retrying automatically.")
+                self.status(False, "Could not contact the desktop tray. Retrying automatically.", "helperContactFailed")
 
         def registered(connection, result):
             if owner != self.watcher_owner:
@@ -110,9 +111,9 @@ class Tray:
             self.registering = False
             try:
                 connection.call_finish(result)
-                self.status(True, "Connected to the desktop tray. Thunderbird can run in the background.")
+                self.status(True, "Connected to the desktop tray. Thunderbird can run in the background.", "helperReady")
             except GLib.Error:
-                self.status(False, "Could not register the tray icon. Retrying automatically.")
+                self.status(False, "Could not register the tray icon. Retrying automatically.", "helperRegistrationFailed")
 
         self.bus.call(owner, WATCHER_PATH, "org.freedesktop.DBus.Properties", "Get",
                       GLib.Variant("(ss)", (WATCHER, "IsStatusNotifierHostRegistered")),
@@ -133,9 +134,10 @@ class Tray:
         count = message.get("unread")
         if type(count) is not int or not 0 <= count <= 2**53 - 1:
             raise ProtocolError("Invalid unread count")
-        new_state = (message["enabled"], message["showUnread"], count, message["incomplete"])
-        old_state = (self.enabled, self.show_unread, self.unread, self.incomplete)
-        self.enabled, self.show_unread, self.unread, self.incomplete = new_state
+        strings = tray_strings(message.get("strings", {}))
+        new_state = (message["enabled"], message["showUnread"], count, message["incomplete"], strings)
+        old_state = (self.enabled, self.show_unread, self.unread, self.incomplete, self.strings)
+        self.enabled, self.show_unread, self.unread, self.incomplete, self.strings = new_state
         if new_state != old_state:
             self.icon_cache = argb_pixmaps(self.badge_count, self.enabled)
             self.revision += 1
@@ -150,7 +152,8 @@ class Tray:
         if kind == "hello":
             self.handshake = True
             self.status(self.available, "Connected to the desktop tray." if self.available else
-                        "Waiting for the desktop tray. Enable GNOME AppIndicator support.")
+                        "Waiting for the desktop tray. Enable GNOME AppIndicator support.",
+                        "helperConnected" if self.available else "helperWaiting")
 
     @property
     def badge_count(self):
@@ -158,6 +161,8 @@ class Tray:
 
     @property
     def title(self):
+        if "title" in self.strings:
+            return self.strings["title"]
         if not self.enabled:
             return "Thunderbird — background mode off"
         if not self.show_unread:
@@ -177,7 +182,7 @@ class Tray:
             "OverlayIconName": ("s", ""), "OverlayIconPixmap": ("a(iiay)", []),
             "AttentionIconName": ("s", ""), "AttentionIconPixmap": ("a(iiay)", []),
             "AttentionMovieName": ("s", ""), "ItemIsMenu": ("b", False), "Menu": ("o", MENU_PATH),
-            "ToolTip": ("(sa(iiay)ss)", ("", [], self.title, "Show Thunderbird")),
+            "ToolTip": ("(sa(iiay)ss)", ("", [], self.title, self.strings.get("show", "Show Thunderbird"))),
         }
         signature, value = properties[name]
         return GLib.Variant(signature, value)
@@ -195,14 +200,14 @@ class Tray:
                     for key, value in values.items()}
         return {
             0: props(children_display="submenu"),
-            1: props(label="Show Thunderbird", enabled=True, visible=True),
-            2: props(label="Send to tray", enabled=self.enabled and self.available, visible=True),
+            1: props(label=self.strings.get("show", "Show Thunderbird"), enabled=True, visible=True),
+            2: props(label=self.strings.get("hide", "Send to tray"), enabled=self.enabled and self.available, visible=True),
             3: props(type="separator"),
-            4: props(label="Enable Close to Background", enabled=True, visible=True,
+            4: props(label=self.strings.get("enable", "Enable Close to Background"), enabled=True, visible=True,
                      toggle_type="checkmark", toggle_state=int(self.enabled)),
-            5: props(label="Settings…", enabled=True, visible=True),
+            5: props(label=self.strings.get("settings", "Settings…"), enabled=True, visible=True),
             6: props(type="separator"),
-            7: props(label="Quit Thunderbird", enabled=True, visible=True),
+            7: props(label=self.strings.get("quit", "Quit Thunderbird"), enabled=True, visible=True),
         }
 
     def menu_property(self, _connection, _sender, _path, _interface, name):

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 — 2026-10-24
+
+- Add French translations for the add-on description, settings and help,
+  notifications, tray menus/tooltips, and connection diagnostics. Follow
+  Thunderbird's interface language, with English fallback and localized plurals
+  and numbers.
+
 ## 0.1.5 — 2026-10-24
 
 - Turn new-mail notifications off by default. Existing saved notification

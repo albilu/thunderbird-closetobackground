@@ -6,10 +6,22 @@ import threading
 
 VERSION = 1
 MAX_FRAME_BYTES = 64 * 1024
+TRAY_STRING_KEYS = frozenset(("title", "show", "hide", "enable", "settings", "quit"))
 
 
 class ProtocolError(ValueError):
     pass
+
+
+def tray_strings(value):
+    """Optional v1 UI strings, already translated in Thunderbird's UI language."""
+    if not isinstance(value, dict) or value.keys() - TRAY_STRING_KEYS:
+        raise ProtocolError("Invalid tray strings")
+    for text in value.values():
+        if (not isinstance(text, str) or not 1 <= len(text) <= 512 or
+                any(ord(char) < 32 or 0xD800 <= ord(char) <= 0xDFFF for char in text)):
+            raise ProtocolError("Invalid tray string")
+    return dict(value)
 
 
 def read_exact(stream, size, *, allow_eof=False):

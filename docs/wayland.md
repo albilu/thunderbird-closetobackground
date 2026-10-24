@@ -66,8 +66,11 @@ minimize/restore and a tray restore followed by further minimize/restore clicks.
 Neither the real desktop entry nor the user's running Thunderbird is changed.
 
 ```sh
-npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground_0.1.5-1_all.deb
+npm run test:gnome -- --package dist/0.1.6/thunderbird-closetobackground_0.1.6-1_all.deb
 ```
+
+Add `--locale fr` to verify French tray menus, options and desktop notifications.
+The test overrides Thunderbird's locale only inside its disposable process.
 
 The validated baseline is Thunderbird 153.4.0 ESR, GNOME Shell 50.4, Dash to Dock
 106, and the system Ubuntu AppIndicators extension. Other supported Thunderbird

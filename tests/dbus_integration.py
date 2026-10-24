@@ -2,6 +2,7 @@
 """Integration test against a real isolated session bus and the real helper process."""
 
 import os
+import json
 from pathlib import Path
 import queue
 import subprocess
@@ -132,6 +133,35 @@ class TrayIntegration(unittest.TestCase):
         self.owner_id = None
         self.wait_message("status", available=False)
         self.own_watcher()
+
+    def test_french_menu_tooltip_and_legacy_english_fallback(self):
+        self.writer.send({"type": "hello", "enabled": True, "showUnread": True, "unread": 2, "incomplete": False})
+        status = self.wait_message("status", available=False)
+        self.assertIn(status["messageKey"], ("helperWaiting", "helperTrayMissing"))
+        self.own_watcher()
+        self.assertEqual(self.property("Title"), "Thunderbird — 2 unread")
+        before = self.call(MENU, "GetLayout", GLib.Variant("(iias)", (0, -1, [])), MENU_PATH).unpack()[0]
+        catalog = json.loads((ROOT / "extension/_locales/fr/messages.json").read_text())
+        keys = {"show": "actionRestore", "hide": "actionHide", "enable": "settingEnabled",
+                "settings": "traySettings", "quit": "actionQuit"}
+        strings = {key: catalog[message]["message"] for key, message in keys.items()}
+        strings["title"] = catalog["trayUnreadOther"]["message"].replace("$COUNT$", "2")
+        # Changing only UI strings must refresh the tray title and menu layout.
+        self.state(unread=2, strings=strings)
+        self.assertEqual(self.property("Title"), "Thunderbird — 2 messages non lus")
+        tooltip = self.property("ToolTip")
+        self.assertEqual(tooltip[2:], (strings["title"], "Afficher Thunderbird"))
+        layout = self.call(MENU, "GetLayout", GLib.Variant("(iias)", (0, -1, [])), MENU_PATH).unpack()
+        self.assertGreater(layout[0], before)
+        labels = {item: properties["label"] for item, properties, _children in layout[1][2] if "label" in properties}
+        self.assertEqual(labels, {1: "Afficher Thunderbird", 2: "Masquer dans la zone de notification",
+                                  4: "Activer Close to Background", 5: "Paramètres…", 7: "Quitter Thunderbird"})
+        self.call(MENU, "Event", GLib.Variant("(isvu)", (1, "clicked", GLib.Variant("i", 0), 0)), MENU_PATH)
+        self.wait_message("action", action="restore")
+        self.state(unread=2)
+        self.assertEqual(self.property("Title"), "Thunderbird — 2 unread")
+        label = self.call(MENU, "GetProperty", GLib.Variant("(is)", (1, "label")), MENU_PATH).unpack()[0]
+        self.assertEqual(label, "Show Thunderbird")
 
 
 if __name__ == "__main__":

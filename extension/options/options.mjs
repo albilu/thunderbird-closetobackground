@@ -1,4 +1,9 @@
+import {createI18n, localizeDocument} from "../lib/i18n.mjs";
+
 const api = messenger;
+const i18n = createI18n(api.i18n);
+const t = i18n.message;
+localizeDocument(document, i18n);
 const form = document.querySelector("form");
 const saveStatus = document.querySelector("#save-status");
 const actionStatus = document.querySelector("#action-status");
@@ -6,7 +11,7 @@ let saving = false;
 
 async function request(type, extra = {}) {
   const result = await api.runtime.sendMessage({type, ...extra});
-  if (!result?.ok) throw new Error(result?.error || "The add-on background page is unavailable.");
+  if (!result?.ok) throw new Error(result?.error || t("backgroundUnavailable"));
   return result.state;
 }
 
@@ -17,10 +22,10 @@ function render(state) {
     input.disabled = saving || (input.name !== "enabled" && !settings.enabled);
   }
   const active = settings.enabled && tray.available && !state.windowError;
-  document.querySelector("#status-title").textContent = !settings.enabled ? "Background mode is off" : active ? "Your tray is ready" : "Waiting for a working tray";
-  document.querySelector("#status-detail").textContent = !settings.enabled ? "Thunderbird windows close and minimize normally." : state.windowError || tray.message || "Install the helper to get started.";
+  document.querySelector("#status-title").textContent = t(!settings.enabled ? "statusDisabled" : active ? "statusReady" : "statusWaiting");
+  document.querySelector("#status-detail").textContent = !settings.enabled ? t("statusDisabledDescription") : state.windowError || tray.message || t("statusInstallHelper");
   document.querySelector("#status-dot").className = `dot ${!settings.enabled ? "disabled" : active ? "ready" : ""}`;
-  document.querySelector("#unread").textContent = `${unreadIncomplete ? "~" : ""}${unread}`;
+  document.querySelector("#unread").textContent = `${unreadIncomplete ? "~" : ""}${i18n.number(unread)}`;
   const diagnostics = [state.mailError, state.notificationError].filter(Boolean).join(" ");
   document.querySelector("#diagnostics").textContent = diagnostics;
   document.querySelector("#diagnostics").hidden = !diagnostics;
@@ -33,12 +38,12 @@ form.addEventListener("change", async event => {
   if (input.tagName !== "INPUT") return;
   saving = true;
   for (const field of form.querySelectorAll("input")) field.disabled = true;
-  saveStatus.textContent = "Saving…";
+  saveStatus.textContent = t("settingsSaving");
   try {
     const state = await request("saveSettings", {settings: {[input.name]: input.checked}});
     saving = false;
     render(state);
-    saveStatus.textContent = "Saved.";
+    saveStatus.textContent = t("settingsSaved");
     saveStatus.classList.remove("error");
   } catch (error) {
     saving = false;
@@ -54,7 +59,7 @@ for (const button of document.querySelectorAll("button")) {
     try {
       await request(button.id);
       actionStatus.classList.remove("error");
-      actionStatus.textContent = button.id === "testNotification" ? "Notification requested. Your desktop’s notification preferences apply." : button.id === "retry" ? "Reconnecting…" : "Done.";
+      actionStatus.textContent = t(button.id === "testNotification" ? "notificationRequested" : button.id === "retry" ? "statusReconnecting" : "actionDone");
     } catch (error) {
       actionStatus.textContent = error.message;
       actionStatus.classList.add("error");
@@ -67,7 +72,7 @@ async function refresh() {
     const state = await request("getState");
     if (!saving) render(state);
   } catch (error) {
-    document.querySelector("#status-title").textContent = "Unable to connect";
+    document.querySelector("#status-title").textContent = t("statusConnectionFailed");
     document.querySelector("#status-detail").textContent = error.message;
     document.querySelector("#status-dot").className = "dot";
     document.querySelector("#hide").disabled = true;

@@ -1,10 +1,13 @@
 import {DEFAULT_SETTINGS, normalizeSettings, readUnreadCount, countableFolders,
   RecentMessages, countNewMessages} from "./lib/core.mjs";
 import {NativeBridge} from "./lib/native-bridge.mjs";
+import {createI18n, trayStrings} from "./lib/i18n.mjs";
 
 const api = messenger;
+const i18n = createI18n(api.i18n);
+const t = i18n.message;
 let settings = {...DEFAULT_SETTINGS, enabled: false};
-let tray = {available: false, message: "Starting…"};
+let tray = {available: false, message: t("statusStarting")};
 let unread = 0;
 let unreadIncomplete = false;
 let mailError = "";
@@ -28,7 +31,8 @@ function report(error) {
 
 function syncTray() {
   bridge.update({enabled: settings.enabled, unread: settings.showUnread && settings.enabled ? unread : 0,
-    showUnread: settings.showUnread, incomplete: unreadIncomplete});
+    showUnread: settings.showUnread, incomplete: unreadIncomplete,
+    strings: trayStrings(i18n, settings, unread, unreadIncomplete)});
 }
 
 async function applyPolicy() {
@@ -37,7 +41,7 @@ async function applyPolicy() {
       closeToTray: settings.closeToTray, minimizeToTray: settings.minimizeToTray});
     windowError = "";
   } catch (error) {
-    windowError = error.message;
+    windowError = t("windowOperationError", error.message);
     report(error);
     await api.backgroundWindows.configure({enabled: false, closeToTray: false, minimizeToTray: false}).catch(report);
   }
@@ -45,6 +49,7 @@ async function applyPolicy() {
 }
 
 const bridge = new NativeBridge(api.runtime, {
+  translate: t,
   onStatus: status => { tray = status; void applyPolicy(); },
   onAction: action => { void handleAction(action).catch(report); },
 });
@@ -52,7 +57,7 @@ const bridge = new NativeBridge(api.runtime, {
 async function handleAction(action) {
   switch (action) {
     case "hide":
-      if (!settings.enabled || !tray.available || windowError) throw new Error("A working tray is required before hiding Thunderbird.");
+      if (!settings.enabled || !tray.available || windowError) throw new Error(t("trayRequired"));
       await api.backgroundWindows.hideAll();
       break;
     case "restore": await api.backgroundWindows.restoreAll(); break;
@@ -68,7 +73,7 @@ async function handleAction(action) {
 function saveSettings(patch) {
   const operation = writeQueue.then(async () => {
     for (const [key, value] of Object.entries(patch ?? {})) {
-      if (!Object.hasOwn(DEFAULT_SETTINGS, key) || typeof value !== "boolean") throw new Error("Invalid setting.");
+      if (!Object.hasOwn(DEFAULT_SETTINGS, key) || typeof value !== "boolean") throw new Error(t("invalidSetting"));
     }
     const updated = normalizeSettings({...settings, ...patch});
     await api.storage.local.set({settings: updated});
@@ -99,10 +104,10 @@ async function refreshUnread() {
       const result = await readUnreadCount(api);
       unread = result.count;
       unreadIncomplete = result.incomplete;
-      mailError = result.incomplete ? "Some folders could not be counted. The badge shows a partial total." : "";
+      mailError = result.incomplete ? t("unreadPartial") : "";
     } catch (error) {
       unreadIncomplete = true;
-      mailError = "Unread count is temporarily unavailable. It will be retried automatically.";
+      mailError = t("unreadUnavailable");
       report(error);
     }
     syncTray();
@@ -118,14 +123,13 @@ async function notify(count, test = false) {
     if (!settings.enabled || !settings.notifications) return;
     await api.notifications.create("close-to-background-mail", {type: "basic",
       iconUrl,
-      title: test ? "Close to Background" : "New mail in Thunderbird",
-      message: test ? "Notifications are ready. Click to show Thunderbird." :
-        `${count === 1 ? "1 new message" : `${count} new messages`}. Click to show Thunderbird.`});
+      title: t(test ? "extensionName" : "notificationTitle"),
+      message: test ? t("notificationTest") : i18n.plural("notificationNewMessage", count)});
     notificationError = "";
   } catch (error) {
-    notificationError = "The desktop could not show a notification. Check your notification settings.";
+    notificationError = t("notificationFailed");
     report(error);
-    if (test) throw error;
+    if (test) throw new Error(notificationError);
   }
 }
 

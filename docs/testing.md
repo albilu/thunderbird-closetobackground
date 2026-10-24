@@ -8,20 +8,32 @@
   handshake/version/failure/backoff, stale connection events, main-window scope,
   close/minimize interception, focus-driven restoration, visible-window behavior,
   canceled quit, and teardown.
+  Localization checks cover English/French catalog and placeholder parity,
+  manifest/options references, document language and accessible labels, plural
+  forms, number formatting, translated helper status/errors, reconnects and
+  fallback for older helpers.
   Python tests cover framing/UTF-8/partial reads, badge pixmaps, and installation
   lifecycle in a temporary directory including spaces and unrelated files.
+  They also check bounded native tray strings and packaged locale resources.
   Policy tests cover idempotence, exact restoration, later administrator edits,
   conflicts, malformed JSON, symlinks, policy precedence, and interrupted writes.
 - `npm run test:dbus`: actual helper and Gio calls on a private session bus.
   Exercises absent watcher, registration, icon/count changes, direct activation,
   every menu action, disable state, watcher disappearance/recovery, and EOF exit.
+  It also checks French menu labels, title/tooltip updates without count changes,
+  menu actions after localization and English fallback for older add-ons.
 
 No test needs real accounts or credentials. Builds require no network access.
 
 - `npm run test:thunderbird`: runs Thunderbird in a temporary profile on a private
   Xvfb/X11 display with xfwm4 and a test tray watcher. Checks actual X11 mapping,
   titlebar close and native Alt+F4 interception, minimize, restore, actual second
-  launches against the same profile, options loading, and tray loss.
+  launches against the same profile, options loading, and tray loss. It also checks
+  localized manifest text, tray titles, options/accessibility text and the test
+  notification. Use `-- --locale fr`, `-- --locale fr-CA`, or `-- --locale de`
+  for French, regional French, or English fallback; the default is `en-US`.
+  It overrides the available/requested UI locale only inside the disposable
+  process, testing real catalog negotiation without downloading language packs.
 - `npm run test:gnome`: starts a private headless GNOME Wayland compositor, the
   system AppIndicator and Dash to Dock extensions, and Thunderbird. A tiny
   inspector extension lives only in a temporary data directory. Checks real window actors, both
@@ -38,6 +50,8 @@ No test needs real accounts or credentials. Builds require no network access.
   setting still focuses without minimizing.
   Uses a freshly built `.deb` by default, or
   `--package <release.deb|release-linux.tar.gz>` to test a specific artifact.
+  Add `--locale fr` to exercise French tray menus, options, and actual GNOME
+  notifications, with a process-local UI locale override as in the X11 test.
   Debian's XPI is installed automatically by the normal startup policy loader;
   the tarball uses the manual-install test path. The helper is loaded from the
   release, and GNOME confirms the client is
@@ -62,14 +76,14 @@ GNOME Shell **50.4**, the system
 `ubuntu-appindicators@ubuntu.com` extension (package **66-1**), Python **3.14.8**,
 Node **24.21.0**.
 Dash to Dock **106** was used for the configured dock-click checks.
-X11 and GNOME Wayland were tested on disposable virtual displays. Release 0.1.5
-was tested on native GNOME Wayland from both the `.deb` and runtime tarball.
-All 49 unit/package tests, package lifecycle checks and the private D-Bus test
-pass. Automatic XPI startup, upgrade, and policy removal are also covered by
-real Thunderbird tests. Options screenshots are written under
+X11 and GNOME Wayland were tested on disposable virtual displays. Release 0.1.6
+was tested on native GNOME Wayland from both the `.deb` and runtime tarball,
+in English and French. All 54 unit/package tests, package lifecycle checks and
+both private D-Bus tests pass. Automatic XPI startup, upgrade, and policy removal
+are also covered by real Thunderbird tests. Options screenshots are written under
 `.test-artifacts/` and are not packaged.
 
-The 0.1.5 notification checks use fresh profiles: new mail updates the badge
+The 0.1.6 notification checks use fresh profiles: new mail updates the badge
 without an add-on notification until the user opts in. The emitted icon data
 matches Thunderbird's installed branding PNG byte for byte, and GNOME receives
 the decoded 128×128 image. Clicking the actual desktop notification restores the
@@ -91,6 +105,28 @@ to Thunderbird. The test verifies that Dash to Dock minimizes and restores the
 window normally, while Thunderbird's own minimize button hides it in the tray.
 Converting compositor-only minimization into a tray hide remains a documented
 limitation; compositor minimization itself works.
+
+### 0.1.6 localization verification
+
+On 2026-10-24, with the Thunderbird 153.4.0 ESR environment above, all 54
+unit/package tests and both private D-Bus tests passed. All four X11 smoke runs
+(`en-US`, `fr`, `fr-CA`, `de`) passed with process-local UI locale overrides.
+French and regional French selected the French catalog; German selected the
+English fallback. Each run checked the actual settings page, accessible labels,
+test notification, native tray title and existing window-recovery behavior.
+The French options screenshot was also inspected in dark mode. X11 screenshots are
+saved as `.test-artifacts/thunderbird-options-<locale>.png`.
+Both package formats also passed the GNOME Wayland integration in English and
+French, including translated tray labels and real desktop notifications.
+GNOME options screenshots are saved as
+`.test-artifacts/gnome-options-<locale>-<package suffix>.png`.
+Additional live GNOME checks verified maximized close/restore, normal standalone
+message-viewer close, narrow French settings/help without horizontal overflow,
+focusable controls, and recovery after terminating or pausing the test helper.
+The heartbeat timeout restored the hidden window within 45 seconds, then
+reconnected successfully. The narrow French screenshot was inspected in dark mode.
+All release formats built successfully and their checksums were verified.
+The full desktop release checklist below still applies.
 
 ## Desktop release checklist
 
@@ -132,6 +168,13 @@ Test each Thunderbird major version before claiming compatibility with it.
     the add-on/helper while hidden and check no invisible window is stranded.
 12. Inspect preferences with keyboard-only navigation, dark mode, and a narrow
     window. Check live state, error messages, and all test actions.
+    Repeat in French after changing Thunderbird's UI language and restarting:
+    inspect the add-on description, settings/help, accessible labels, tray menu
+    and tooltip, partial counts, singular/plural notifications, missing-helper
+    and missing-tray diagnostics. Check a French regional locale and an
+    unsupported language (English fallback), including when the desktop uses a
+    different language. The helper and add-on must both be updated for full
+    localization.
 13. Hide Thunderbird and launch it again from a terminal and the desktop/Dash.
     Verify the existing window returns, no duplicate main window appears, and
     the launcher stops showing startup activity. Repeat while already visible

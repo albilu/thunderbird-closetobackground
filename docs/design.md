@@ -51,6 +51,28 @@ Each helper owns `org.kde.StatusNotifierItem-PID-1` and registers that service n
 `WindowId` uses the signed integer type expected by the deployed `org.kde`
 interface; no X11 window ID is required.
 
+## Localization
+
+The add-on uses Thunderbird's WebExtension i18n API with English (`en`, the
+default) and French (`fr`) catalogs in `extension/_locales/`. Thunderbird selects
+the language, including French regional variants; unsupported languages fall
+back to English. The catalog's `locale` entry controls document language, number
+formatting and plural rules. Restart Thunderbird after changing its UI language.
+The product name **Close to Background** stays unchanged.
+
+Settings, accessible labels, help, notifications and add-on diagnostics use the
+same catalogs. Translations enter the options page as text, never HTML; its
+AppIndicator link remains part of the trusted markup. Notification text remains
+generic and contains only message counts.
+
+The extension sends translated menu labels and a fully formatted title to the
+helper with every state update, so the tray follows Thunderbird's language
+instead of the helper process's environment. The helper returns stable
+`messageKey` values for its status/error messages; the bridge translates only
+known keys. Original platform errors remain available as diagnostic detail.
+Older v1 helpers without keys retain their English diagnostic text, and older
+add-ons without translated tray strings receive the helper's English defaults.
+
 ## Failure handling
 
 The startup/default policy is **no hiding**. A helper must use the same protocol
@@ -79,7 +101,7 @@ Extension → helper:
 
 | Type | Additional fields | Meaning |
 | --- | --- | --- |
-| `hello` | `enabled`, `showUnread`, `incomplete` booleans; `unread` nonnegative safe integer | Initialize connection/state |
+| `hello` | `enabled`, `showUnread`, `incomplete` booleans; `unread` nonnegative safe integer; optional `strings` object | Initialize connection/state |
 | `state` | Same as `hello` | Replace state |
 | `ping` | None | Liveness probe |
 
@@ -87,10 +109,24 @@ Helper → extension:
 
 | Type | Additional fields | Meaning |
 | --- | --- | --- |
-| `status` | `available` boolean, `message` string | Whether it is safe to hide windows |
+| `status` | `available` boolean, `message` string; optional `messageKey` string | Whether it is safe to hide windows |
 | `action` | `action`: `restore`, `hide`, `toggle`, `settings`, or `quit` | User tray interaction |
 | `pong` | None | Liveness reply |
-| `error` | `message` string | Dependency, protocol, or startup failure |
+| `error` | `message` string; optional `messageKey` string | Dependency, protocol, or startup failure |
+
+The optional v1 `strings` object accepts only `title`, `show`, `hide`, `enable`,
+`settings`, and `quit`. Each value is a nonempty string of at most 512 Unicode
+code points, without C0 controls or lone surrogates. Missing keys use English
+defaults; omitting `strings` resets all text to those defaults. Invalid strings
+reject the state before it changes. Text changes publish the normal SNI property
+and DBusMenu layout updates. Framing, the 64 KiB limit and readiness requirements
+are unchanged.
+
+Status keys are `helperDesktopLost`, `helperTrayMissing`, `helperTrayLost`,
+`helperTrayInactive`, `helperContactFailed`, `helperReady`,
+`helperRegistrationFailed`, `helperConnected`, and `helperWaiting`. Error keys
+are `helperDependencies`, `helperSessionBus`, and `helperProtocolError`. The
+English `message` is retained for v1 consumers and unknown-key fallback.
 
 Unknown commands are rejected. The helper receives no message content, account
 credentials, folder paths, arbitrary executable names, or shell commands. The

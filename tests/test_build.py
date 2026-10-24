@@ -33,6 +33,13 @@ class BuildTests(unittest.TestCase):
                     paths.extend([experiment['schema'], experiment['parent']['script']])
                 for path in paths:
                     self.assertIn(path, archive.namelist())
+                self.assertEqual(manifest['default_locale'], 'en')
+                for locale in ('en', 'fr'):
+                    messages = json.loads(archive.read(f'_locales/{locale}/messages.json'))
+                    for field in ('name', 'description'):
+                        key = manifest[field].removeprefix('__MSG_').removesuffix('__')
+                        self.assertTrue(messages[key]['message'])
+                self.assertIn('lib/i18n.mjs', archive.namelist())
                 self.assertFalse(any(name.startswith(('tests/', 'native/')) for name in archive.namelist()))
             with tarfile.open(artifacts['tar']) as archive:
                 names = [member.name.split('/', 1)[1] for member in archive.getmembers()]

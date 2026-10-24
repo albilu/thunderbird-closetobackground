@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "native"))
 sys.path.insert(0, str(ROOT / "scripts"))
-from protocol import MAX_FRAME_BYTES, ProtocolError, Writer, read_message
+from protocol import MAX_FRAME_BYTES, ProtocolError, Writer, read_message, tray_strings
 import icons
 from icons import argb_pixmaps, badge_label, png_bytes
 from install import install, uninstall, EXTENSION_ID
@@ -38,6 +38,17 @@ class ProtocolTests(unittest.TestCase):
                      struct.pack("=I", 1) + b"\xff"):
             with self.subTest(data=data), self.assertRaises(ProtocolError):
                 read_message(io.BytesIO(data))
+
+    def test_optional_translated_tray_strings_are_bounded_and_validated(self):
+        self.assertEqual(tray_strings({}), {})  # Existing v1 senders use English defaults.
+        strings = {"show": "Afficher Thunderbird", "title": "Thunderbird — 2 messages non lus"}
+        output = io.BytesIO()
+        Writer(output).send({"type": "state", "strings": strings})
+        self.assertEqual(tray_strings(read_message(io.BytesIO(output.getvalue()))["strings"]), strings)
+        for invalid in (None, [], "fr", {"unknown": "text"}, {"show": 1}, {"show": ""},
+                        {"show": "x" * 513}, {"title": "a\0b"}, {"title": "a\nb"}, {"title": "\ud800"}):
+            with self.subTest(value=invalid), self.assertRaises(ProtocolError):
+                tray_strings(invalid)
 
 
 class IconTests(unittest.TestCase):

@@ -31,7 +31,19 @@ TITLE = 'Close to Background Wayland test'
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', type=Path, help='Release .deb or -linux.tar.gz (default: build a temporary .deb)')
+    parser.add_argument('--locale', choices=('en-US', 'fr'), default='en-US',
+                        help='UI locale to simulate in the disposable Thunderbird process')
     args = parser.parse_args()
+    locale = 'fr' if args.locale == 'fr' else 'en'
+    catalog = json.loads((ROOT / f'extension/_locales/{locale}/messages.json').read_text())
+
+    def message(key):
+        return catalog[key]['message']
+
+    def unread_title(count):
+        suffix = 'One' if count == 1 or (locale == 'fr' and count == 0) else 'Other'
+        return message(f'trayUnread{suffix}').replace('$COUNT$', str(count))
+
     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     candidates = ['ubuntu-appindicators@ubuntu.com', 'appindicatorsupport@rgcjonas.gmail.com']
     indicator = next((name for name in candidates if (Path('/usr/share/gnome-shell/extensions') / name).is_dir()), None)
@@ -151,13 +163,15 @@ def main():
             version = client.script("""
               const {AddonManager} = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
               const {FileUtils} = ChromeUtils.importESModule('resource://gre/modules/FileUtils.sys.mjs');
+              Services.locale.availableLocales = [...new Set([...Services.locale.availableLocales, arguments[3]])];
+              Services.locale.requestedLocales = [arguments[3]];
               if (Services.dirsvc.has('XREUserNativeManifests')) Services.dirsvc.undefine('XREUserNativeManifests');
               Services.dirsvc.set('XREUserNativeManifests', new FileUtils.File(arguments[0]));
               if (!arguments[2]) {
                 await AddonManager.installTemporaryAddon(new FileUtils.File(arguments[1]));
               }
               return Services.appinfo.version;
-            """, [str(manifest_path.parent.parent), str(xpi_path), automatic])
+            """, [str(manifest_path.parent.parent), str(xpi_path), automatic, args.locale])
             if automatic:
                 installed = wait(lambda: client.script("""
                   const {AddonManager} = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
@@ -169,6 +183,16 @@ def main():
                 """), 'automatic package add-on installation')
                 assert installed == {'temporary': False, 'source': xpi_path.as_uri(), 'canDisable': True, 'canRemove': False}, installed
                 print('PASS automatic XPI installation on startup, with user disable allowed', flush=True)
+                # The policy may install before Marionette sets the simulated UI
+                # locale. Reload the add-on so it negotiates that locale afresh.
+                previous_destination = helper_destination()
+                client.script("""
+                  const {AddonManager} = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
+                  await (await AddonManager.getAddonByID('closetobackground@thunderbird-background.local')).reload();
+                  return true;
+                """)
+                wait(lambda: helper_destination() != previous_destination,
+                     'previous tray registration removed after locale reload')
             destination = wait(helper_destination, 'actual GNOME tray registration')
             print(f'Thunderbird {version}: helper registered with actual GNOME AppIndicator', flush=True)
             prelude = """
@@ -306,7 +330,7 @@ def main():
                 return call(destination, '/StatusNotifierItem', 'org.freedesktop.DBus.Properties', 'Get',
                             GLib.Variant('(ss)', ('org.kde.StatusNotifierItem', 'Title'))).unpack()[0]
 
-            wait(lambda: '3 unread' in tray_title(), 'real folder unread count excluding Trash')
+            wait(lambda: tray_title() == unread_title(3), 'real folder unread count excluding Trash')
             notification_script = prelude + """
               return extension.apiManager.getAPI('notifications', extension, 'addon_parent')
                 .notificationsMap.get('close-to-background-mail')?.options ?? null;
@@ -322,9 +346,9 @@ def main():
             client.script(set_notifications, [True])
             time.sleep(.3)
             assert client.script(ADD_MAIL) == {'inbox': 6, 'trash': 2}
-            wait(lambda: '6 unread' in tray_title(), 'unread count after opting into notifications')
+            wait(lambda: tray_title() == unread_title(6), 'unread count after opting into notifications')
             notification = wait(lambda: client.script(notification_script), 'new-mail notification')
-            assert notification['message'] == '3 new messages. Click to show Thunderbird.', notification
+            assert notification['message'] == message('notificationNewMessageOther').replace('$COUNT$', '3'), notification
             assert notification['iconUrl'].startswith('data:image/png;base64,'), notification['iconUrl'].split(',', 1)[0]
             with zipfile.ZipFile('/usr/lib/thunderbird/omni.ja') as resources:
                 assert base64.b64decode(notification['iconUrl'].split(',', 1)[1]) == resources.read(
@@ -333,7 +357,7 @@ def main():
             def desktop_notification():
                 value = call('org.gnome.Shell', '/net/thunderbird/TrayTest', 'net.thunderbird.TrayTest', 'Notifications')
                 return next((item for item in json.loads(value.unpack()[0])
-                             if item['title'] == 'New mail in Thunderbird'), None)
+                             if item['title'] == message('notificationTitle')), None)
 
             desktop = wait(desktop_notification, 'actual GNOME new-mail notification')
             assert desktop['body'] == notification['message'], desktop
@@ -342,30 +366,35 @@ def main():
             client.script(prelude + 'win.document.title = arguments[0]; await api.hideAll(); return true;', [TITLE])
             wait(lambda: not visible(), 'hidden before notification click')
             call('org.gnome.Shell', '/net/thunderbird/TrayTest', 'net.thunderbird.TrayTest',
-                 'ActivateNotification', GLib.Variant('(s)', ('New mail in Thunderbird',)))
+                 'ActivateNotification', GLib.Variant('(s)', (message('notificationTitle'),)))
             wait(visible, 'notification click restores Thunderbird')
             print('PASS clicking the desktop notification restores Thunderbird', flush=True)
             client.script(set_notifications, [False])
             time.sleep(.3)
             assert client.script(ADD_MAIL) == {'inbox': 9, 'trash': 3}
-            wait(lambda: '9 unread' in tray_title(), 'unread updates with notifications disabled')
+            wait(lambda: tray_title() == unread_title(9), 'unread updates with notifications disabled')
             time.sleep(1.2)
             assert client.script(notification_script) is None, 'Disabled notifications must stay silent'
             print('PASS opting out stops new-mail notifications without disabling unread counts', flush=True)
             assert client.script(MARK_READ) == 0
-            wait(lambda: '0 unread' in tray_title(), 'badge reset after marking mail read')
+            wait(lambda: tray_title() == unread_title(0), 'badge reset after marking mail read')
             print('PASS marking mail read updates badge to zero', flush=True)
 
             def menu_action(item):
                 call(destination, '/MenuBar', 'com.canonical.dbusmenu', 'Event',
                      GLib.Variant('(isvu)', (item, 'clicked', GLib.Variant('i', 0), 0)))
 
+            layout = call(destination, '/MenuBar', 'com.canonical.dbusmenu', 'GetLayout',
+                          GLib.Variant('(iias)', (0, -1, []))).unpack()
+            labels = {item: props['label'] for item, props, _children in layout[1][2] if 'label' in props}
+            assert labels == {1: message('actionRestore'), 2: message('actionHide'), 4: message('settingEnabled'),
+                              5: message('traySettings'), 7: message('actionQuit')}, labels
             client.script(prelude + 'win.document.title = arguments[0]; await api.hideAll(); return true;', [TITLE])
             menu_action(4)
-            wait(lambda: 'mode off' in tray_title(), 'disabled preference propagated to native helper')
+            wait(lambda: tray_title() == message('trayDisabled'), 'disabled preference propagated to native helper')
             wait(visible, 'restoration when disabled from tray')
             menu_action(4)
-            wait(lambda: '0 unread' in tray_title(), 're-enabled preference propagated to native helper')
+            wait(lambda: tray_title() == unread_title(0), 're-enabled preference propagated to native helper')
             print('PASS tray Enable setting updates preferences and restores windows', flush=True)
             menu_action(5)
             wait(lambda: client.script(prelude + "return [...extension.views].some(view => view.uri?.spec.endsWith('/options/options.html'));"),
@@ -376,7 +405,7 @@ def main():
             screenshot = client.command('WebDriver:TakeScreenshot', {'id': None, 'full': False, 'scroll': False})['value']
             artifacts = ROOT / '.test-artifacts'
             artifacts.mkdir(exist_ok=True)
-            (artifacts / f'gnome-options-{package_path.suffix.lstrip(".")}.png').write_bytes(base64.b64decode(screenshot))
+            (artifacts / f'gnome-options-{locale}-{package_path.suffix.lstrip(".")}.png').write_bytes(base64.b64decode(screenshot))
 
             def options_script(source):
                 # Thunderbird tabs are not exposed as WebDriver window handles.
@@ -389,16 +418,21 @@ def main():
 
             options_state = options_script("""
               return {url: location.href,
+                lang: document.documentElement.lang, title: document.title,
+                restore: document.querySelector('#restore').textContent,
                 notifications: document.querySelector('input[name="notifications"]')?.checked,
                 testDisabled: document.querySelector('#testNotification')?.disabled};
             """)
             assert options_state['notifications'] is False and options_state['testDisabled'] is True, options_state
+            assert options_state['lang'] == locale and options_state['title'] == message('optionsTitle'), options_state
+            assert options_state['restore'] == message('actionRestore'), options_state
             options_script('document.querySelector(\'input[name="notifications"]\').click(); return true;')
             wait(lambda: options_script("return !document.querySelector('#testNotification').disabled;"),
                  'notification test button enabled after opting in')
             options_script("document.querySelector('#testNotification').click(); return true;")
             test_notification = wait(lambda: client.script(notification_script), 'notification from settings test button')
             assert test_notification['title'] == 'Close to Background', test_notification['title']
+            assert test_notification['message'] == message('notificationTest'), test_notification
             assert test_notification['iconUrl'] == notification['iconUrl'], 'Test alerts must also use Thunderbird artwork'
             client.script(set_notifications, [False])
             print('PASS notifications checkbox, disabled test button, opt-in, and test notification icon', flush=True)
@@ -428,7 +462,7 @@ def main():
               await addon.enable(); return true;
             """)
             destination = wait(helper_destination, 'helper restarted after re-enabling add-on')
-            wait(lambda: '0 unread' in tray_title(), 'persisted enabled setting after reload')
+            wait(lambda: tray_title() == unread_title(0), 'persisted enabled setting after reload')
             menu_action(7)
             process.wait(timeout=10)
             assert process.returncode == 0, process.returncode

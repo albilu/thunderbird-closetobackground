@@ -2,14 +2,14 @@
 
 ## Release artifacts
 
-`python3 scripts/build.py` builds everything offline in `dist/0.1.5/`:
+`python3 scripts/build.py` builds everything offline in `dist/0.1.6/`:
 
 | File | Contents |
 | --- | --- |
-| `thunderbird-closetobackground_0.1.5-1_all.deb` | System helper, native-host registration, automatically installed XPI, diagnostic command, manual and documentation |
-| `thunderbird-closetobackground-0.1.5-linux.tar.gz` | Small per-user install bundle, XPI, installer/uninstaller, diagnostics and setup documentation |
-| `thunderbird-closetobackground-0.1.5-source.tar.gz` | Rebuildable source, packaging definitions, tests and developer documentation |
-| `thunderbird-closetobackground-0.1.5.xpi` | Thunderbird add-on only; requires the matching helper |
+| `thunderbird-closetobackground_0.1.6-1_all.deb` | System helper, native-host registration, automatically installed XPI, diagnostic command, manual and documentation |
+| `thunderbird-closetobackground-0.1.6-linux.tar.gz` | Small per-user install bundle, XPI, installer/uninstaller, diagnostics and setup documentation |
+| `thunderbird-closetobackground-0.1.6-source.tar.gz` | Rebuildable source, packaging definitions, tests and developer documentation |
+| `thunderbird-closetobackground-0.1.6.xpi` | Thunderbird add-on only; requires the matching helper |
 | `SHA256SUMS` | SHA-256 digests of the four artifacts above |
 
 The runtime archives contain no test profiles, screenshots, development caches,
@@ -17,9 +17,13 @@ build outputs, or personal paths. The source archive includes the effective rele
 metadata so it can reproduce a customized build. No root access or downloads are
 needed to build. Building `.deb` requires the `dpkg-deb` tool from `dpkg`.
 
+Every XPI includes the English and French `_locales` catalogs. The Debian package
+and runtime tarball embed that same XPI; the helper receives localized tray text
+from the add-on and needs no separate language pack or compiled translation files.
+
 ```sh
 python3 scripts/build.py
-cd dist/0.1.5
+cd dist/0.1.6
 sha256sum -c SHA256SUMS
 ```
 
@@ -32,7 +36,7 @@ python3 scripts/build.py --formats xpi,tar,source
 ## Debian/Ubuntu installation
 
 ```sh
-sudo apt install ./thunderbird-closetobackground_0.1.5-1_all.deb
+sudo apt install ./thunderbird-closetobackground_0.1.6-1_all.deb
 sudo apt install gnome-shell-extension-appindicator
 ```
 
@@ -126,13 +130,13 @@ Install Python 3.10+, PyGObject with GLib and GdkPixbuf introspection, native Th
 host using your distribution packages. Then:
 
 ```sh
-tar -xzf thunderbird-closetobackground-0.1.5-linux.tar.gz
-cd thunderbird-closetobackground-0.1.5
+tar -xzf thunderbird-closetobackground-0.1.6-linux.tar.gz
+cd thunderbird-closetobackground-0.1.6
 ./install.sh
 /usr/bin/python3 scripts/doctor.py
 ```
 
-Install the included `thunderbird-closetobackground-0.1.5.xpi` through Thunderbird.
+Install the included `thunderbird-closetobackground-0.1.6.xpi` through Thunderbird.
 Do not use sudo for this installer. It copies the helper into
 `~/.local/share/thunderbird-close-to-background/` and registers it in
 `~/.mozilla/native-messaging-hosts/`. The runtime does not depend on the extracted
@@ -176,9 +180,13 @@ npm test
 npm run test:dbus
 npm run test:packages
 npm run test:policies
-npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground_0.1.5-1_all.deb
-npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground-0.1.5-linux.tar.gz
+npm run test:gnome -- --package dist/0.1.6/thunderbird-closetobackground_0.1.6-1_all.deb
+npm run test:gnome -- --package dist/0.1.6/thunderbird-closetobackground-0.1.6-linux.tar.gz
 ```
+
+Repeat the GNOME package checks with `--locale fr` for the French interface and
+desktop notifications. X11 locale/fallback checks are documented in
+[testing.md](testing.md).
 
 Package lifecycle tests require `dpkg` and `fakeroot`. Package tests inspect
 metadata/ownership/dependencies, verify checksums, reproduce

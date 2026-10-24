@@ -1,10 +1,12 @@
 import {HOST_NAME, PROTOCOL_VERSION} from "./core.mjs";
+import {HELPER_MESSAGE_KEYS} from "./i18n.mjs";
 
 export class NativeBridge {
-  constructor(runtime, {onStatus, onAction}, timers = globalThis) {
+  constructor(runtime, {onStatus, onAction, translate}, timers = globalThis) {
     this.runtime = runtime;
     this.onStatus = onStatus;
     this.onAction = onAction;
+    this.t = translate;
     this.timers = timers;
     this.port = null;
     this.retryDelay = 1000;
@@ -20,7 +22,7 @@ export class NativeBridge {
     this.heartbeat = this.timers.setInterval(() => {
       if (!this.port) return;
       if (Date.now() - this.lastSeen > 30_000) {
-        this.disconnect("The tray helper stopped responding. Windows have been restored.");
+        this.disconnect(this.t("helperTimeout"));
       } else {
         this.send({type: "ping"});
       }
@@ -30,7 +32,7 @@ export class NativeBridge {
   connect() {
     if (this.stopped || this.port) return;
     this.timers.clearTimeout(this.retryTimer);
-    this.onStatus({available: false, message: "Connecting to the tray helper…"});
+    this.onStatus({available: false, message: this.t("helperConnecting")});
     try {
       const port = this.runtime.connectNative(HOST_NAME);
       this.port = port;
@@ -38,31 +40,35 @@ export class NativeBridge {
       port.onMessage.addListener(message => {
         if (this.port !== port || !message || typeof message !== "object") return;
         if (message.protocol !== PROTOCOL_VERSION) {
-          this.disconnect("Tray helper version mismatch. Reinstall the helper.");
+          this.disconnect(this.t("helperVersionMismatch"));
           return;
         }
         this.lastSeen = Date.now();
         if (message.type === "status") {
           this.retryDelay = 1000;
           this.onStatus({available: message.available === true,
-            message: String(message.message ?? "")});
+            message: this.helperMessage(message)});
         } else if (message.type === "action") {
           if (["restore", "hide", "toggle", "settings", "quit"].includes(message.action)) {
             this.onAction(message.action);
           }
         } else if (message.type === "error") {
-          this.disconnect(String(message.message || "Tray helper error."));
+          this.disconnect(this.helperMessage(message) || this.t("helperError"));
         }
       });
       port.onDisconnect.addListener(() => {
         // Reading port.error also consumes Thunderbird's native-host failure.
         const reason = port.error?.message || this.runtime.lastError?.message;
-        if (this.port === port) this.disconnect(reason || "The tray helper disconnected.");
+        if (this.port === port) this.disconnect(reason ? this.t("helperConnectionError", reason) : this.t("helperDisconnected"));
       });
       this.send({type: "hello", ...this.state});
     } catch (error) {
-      this.disconnect(error.message);
+      this.disconnect(this.t("helperConnectionError", error.message));
     }
+  }
+
+  helperMessage(message) {
+    return (HELPER_MESSAGE_KEYS.has(message.messageKey) && this.t(message.messageKey)) || String(message.message ?? "");
   }
 
   send(message) {
@@ -71,7 +77,7 @@ export class NativeBridge {
       this.port.postMessage({...message, protocol: PROTOCOL_VERSION});
       return true;
     } catch (error) {
-      this.disconnect(error.message);
+      this.disconnect(this.t("helperConnectionError", error.message));
       return false;
     }
   }
@@ -94,13 +100,13 @@ export class NativeBridge {
   }
 
   retry() {
-    this.disconnect("Reconnecting to the tray helper…");
+    this.disconnect(this.t("helperReconnecting"));
     this.connect();
   }
 
   stop() {
     this.stopped = true;
     this.timers.clearInterval(this.heartbeat);
-    this.disconnect("Tray helper stopped.");
+    this.disconnect(this.t("helperStopped"));
   }
 }

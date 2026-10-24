@@ -5,6 +5,7 @@ Run: dbus-run-session -- xvfb-run -a python3 tests/thunderbird_integration.py
 Requires Thunderbird, Xvfb, xfwm4, and PyGObject. Never uses a personal profile.
 """
 
+import argparse
 import json
 import base64
 import os
@@ -83,6 +84,12 @@ class Marionette:
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--locale', choices=('en-US', 'fr', 'fr-CA', 'de'), default='en-US',
+                        help='UI locale to simulate in this disposable process (default: en-US)')
+    args = parser.parse_args()
+    expected_locale = 'fr' if args.locale.startswith('fr') else 'en'
+    catalog = json.loads((ROOT / f'extension/_locales/{expected_locale}/messages.json').read_text())
     if not os.environ.get("DISPLAY") or not os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
         raise SystemExit("Run inside dbus-run-session and xvfb-run (see script docstring).")
     loop = GLib.MainLoop()
@@ -151,11 +158,16 @@ def main():
             result = client.script("""
               const {AddonManager} = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
               const {FileUtils} = ChromeUtils.importESModule('resource://gre/modules/FileUtils.sys.mjs');
+              // Exercise actual locale negotiation without downloading language packs.
+              // Only this disposable process sees the additional available UI locale.
+              Services.locale.availableLocales = [...new Set([...Services.locale.availableLocales, arguments[2]])];
+              Services.locale.requestedLocales = [arguments[2]];
               // Override the native manifest directory in THIS disposable process only.
               Services.dirsvc.set('XREUserNativeManifests', new FileUtils.File(arguments[0]));
               await AddonManager.installTemporaryAddon(new FileUtils.File(arguments[1]));
-              return {version: Services.appinfo.version};
-            """, [str(manifest_path.parent.parent), str(ROOT / "extension")])
+              return {version: Services.appinfo.version, locale: Services.locale.appLocaleAsBCP47};
+            """, [str(manifest_path.parent.parent), str(ROOT / "extension"), args.locale])
+            assert result['locale'] == args.locale, result
             print("Loaded extension in Thunderbird", result, flush=True)
             destination = registrations.get(timeout=15)
             print("Native helper registered with test tray", flush=True)
@@ -171,6 +183,16 @@ def main():
               const win = Services.wm.getMostRecentWindow('mail:3pane');
               const base = win.docShell.treeOwner.QueryInterface(Ci.nsIBaseWindow);
             """
+            localization = client.script(prelude + """
+              return {locale: extension.localeData.selectedLocale, description: extension.manifest.description};
+            """)
+            assert localization == {'locale': expected_locale, 'description': catalog['extensionDescription']['message']}, localization
+            tray_title = bus.call_sync(destination, '/StatusNotifierItem', 'org.freedesktop.DBus.Properties', 'Get',
+                                      GLib.Variant('(ss)', ('org.kde.StatusNotifierItem', 'Title')), None,
+                                      Gio.DBusCallFlags.NONE, 3000, None).unpack()[0]
+            title_key = 'trayUnreadOne' if expected_locale == 'fr' else 'trayUnreadOther'
+            assert tray_title == catalog[title_key]['message'].replace('$COUNT$', '0'), tray_title
+            print(f'PASS {args.locale} selects {expected_locale} for the manifest and native tray', flush=True)
             client.script(prelude + "win.document.title = 'Close to Background smoke main'; return true;")
 
             def visible():
@@ -243,10 +265,44 @@ def main():
             print("Options:", client.script(prelude + """
               return [...extension.views].map(view => ({type: view.viewType, url: view.uri?.spec}));
             """), flush=True)
+
+            def options_script(source):
+                return client.script(prelude + """
+                  const browser = win.document.getElementById('tabmail').currentTabInfo.browser;
+                  const actor = browser.browsingContext.currentWindowGlobal.getActor('MarionetteCommands');
+                  return await actor.executeScript(arguments[0], [], {sandboxName: 'system', newSandbox: true});
+                """, [source])
+
+            options = options_script("""
+              return {lang: document.documentElement.lang, title: document.title,
+                restore: document.querySelector('#restore').textContent,
+                label: document.querySelector('#settings').getAttribute('aria-label'),
+                tooltip: document.querySelector('#unread').title,
+                status: document.querySelector('#status-title').textContent};
+            """)
+            assert options == {'lang': expected_locale, 'title': catalog['optionsTitle']['message'],
+                               'restore': catalog['actionRestore']['message'], 'label': catalog['settingsLabel']['message'],
+                               'tooltip': catalog['unreadMessages']['message'], 'status': catalog['statusReady']['message']}, options
+            options_script('document.querySelector(\'input[name="notifications"]\').click(); return true;')
+            deadline = time.monotonic() + 5
+            while options_script("return document.querySelector('#testNotification').disabled;"):
+                assert time.monotonic() < deadline, 'Notification test button did not enable'
+                time.sleep(.1)
+            options_script("document.querySelector('#testNotification').click(); return true;")
+            notification = None
+            deadline = time.monotonic() + 5
+            while not notification and time.monotonic() < deadline:
+                notification = client.script(prelude + """
+                  return extension.apiManager.getAPI('notifications', extension, 'addon_parent')
+                    .notificationsMap.get('close-to-background-mail')?.options ?? null;
+                """)
+                time.sleep(.1)
+            assert notification and notification['message'] == catalog['notificationTest']['message'], notification
+            print(f'PASS {args.locale} options, accessible labels and test notification', flush=True)
             screenshot = client.command('WebDriver:TakeScreenshot', {'id': None, 'full': False, 'scroll': False})['value']
             artifacts = ROOT / '.test-artifacts'
             artifacts.mkdir(exist_ok=True)
-            (artifacts / 'thunderbird-options.png').write_bytes(base64.b64decode(screenshot))
+            (artifacts / f'thunderbird-options-{args.locale}.png').write_bytes(base64.b64decode(screenshot))
             client.script(prelude + """
               await bg.messenger.backgroundWindows.configure({enabled: true, closeToTray: true, minimizeToTray: true});
               await bg.messenger.backgroundWindows.hideAll();
