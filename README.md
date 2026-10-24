@@ -36,7 +36,7 @@ Download the Debian package or the runtime tarball from the
 ### Debian/Ubuntu
 
 ```sh
-sudo apt install ./thunderbird-closetobackground_0.1.4-1_all.deb
+sudo apt install ./thunderbird-closetobackground_0.1.5-1_all.deb
 sudo apt install gnome-shell-extension-appindicator
 thunderbird-closetobackground-doctor
 ```
@@ -50,8 +50,8 @@ package upgrade. Remove with `sudo apt remove thunderbird-closetobackground`.
 ```sh
 sudo apt install python3 python3-gi gir1.2-glib-2.0 gir1.2-gdkpixbuf-2.0 gnome-shell-extension-appindicator
 # or: sudo dnf install python3 python3-gobject glib2 gdk-pixbuf2 gnome-shell-extension-appindicator
-tar -xzf thunderbird-closetobackground-0.1.4-linux.tar.gz
-cd thunderbird-closetobackground-0.1.4
+tar -xzf thunderbird-closetobackground-0.1.5-linux.tar.gz
+cd thunderbird-closetobackground-0.1.5
 ./install.sh
 ```
 
@@ -69,8 +69,9 @@ checkouts use `python3 scripts/install.py --uninstall`.
   Thunderbird again; hidden windows keep size, position, and maximized state.
 - **Unread badge** summed across folders — Junk, Trash, Sent, Drafts, and
   similar are excluded — shown up to **99+** on Thunderbird's real icon.
-- **Grouped new-mail notifications** with generic text; senders, subjects, and
-  account names never leave Thunderbird. Clicking restores the window.
+- **Optional grouped new-mail notifications**, off by default, with Thunderbird's
+  original icon and generic text. Senders, subjects, and account names never leave
+  Thunderbird. Clicking restores the window. Existing saved preferences are kept.
 - **Settings** in the tray's **Settings…** menu or add-on preferences, saved
   per profile. Turning the feature off restores hidden windows immediately.
 - **Wayland-native**: hiding happens inside Thunderbird, without `wmctrl`,
@@ -110,7 +111,7 @@ npm run test:dbus                 # helper on a private D-Bus session
 npm run test:packages             # .deb lifecycle in a private dpkg root
 npm run test:policies             # policy handling with real Thunderbird restarts
 npm run test:thunderbird          # X11 desktop test (Xvfb, xfwm4, xdotool)
-npm run test:gnome -- --package dist/0.1.4/thunderbird-closetobackground_0.1.4-1_all.deb   # headless GNOME Wayland
+npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground_0.1.5-1_all.deb   # headless GNOME Wayland
 ```
 
 Desktop behavior ultimately needs the manual checklist in

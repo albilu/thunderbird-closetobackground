@@ -2,7 +2,8 @@
 
 ## Automated checks
 
-- `npm test`: settings normalization, folder inclusion/deduplication, bounded
+- `npm test`: settings normalization, notifications off by default with saved
+  preferences preserved, folder inclusion/deduplication, bounded
   concurrent counts, partial failures, paginated new mail, list disposal, native
   handshake/version/failure/backoff, stale connection events, main-window scope,
   close/minimize interception, focus-driven restoration, visible-window behavior,
@@ -26,8 +27,9 @@ No test needs real accounts or credentials. Builds require no network access.
   inspector extension lives only in a temporary data directory. Checks real window actors, both
   Thunderbird's own titlebar close command and compositor close, and
   minimize commands, tray registration/actions, synthetic local mail counts,
-  grouped notifications, mark-read updates, enable/disable preferences, tray loss,
-  add-on teardown, and normal Quit. Also starts a real second Thunderbird process
+  notification opt-in/out, original Thunderbird artwork and the decoded image in
+  GNOME's actual notification, click-to-restore, mark-read updates, enable/disable
+  preferences, tray loss, add-on teardown, and normal Quit. Also starts a real second Thunderbird process
   and activates the private GNOME application launcher, checking restoration of
   the same window and completion of startup. Exercises Dash to Dock's actual
   primary-click handler with the **Minimize window** setting: focus an unfocused
@@ -55,15 +57,25 @@ No test needs real accounts or credentials. Builds require no network access.
 
 ## Verified environment
 
-On 2026-10-24: Thunderbird **153.4.0 ESR**, GNOME Shell **50.4**, the system
-`ubuntu-appindicators@ubuntu.com` extension, Python **3.14.8**, Node **24.21.0**.
+On 2026-10-24, on Kali GNU/Linux Rolling (2025.4): Thunderbird **153.4.0 ESR**,
+GNOME Shell **50.4**, the system
+`ubuntu-appindicators@ubuntu.com` extension (package **66-1**), Python **3.14.8**,
+Node **24.21.0**.
 Dash to Dock **106** was used for the configured dock-click checks.
-X11 and GNOME Wayland were tested on disposable virtual displays. Release 0.1.4
+X11 and GNOME Wayland were tested on disposable virtual displays. Release 0.1.5
 was tested on native GNOME Wayland from both the `.deb` and runtime tarball.
-All 47 unit/package tests, package lifecycle checks and the private D-Bus test
+All 49 unit/package tests, package lifecycle checks and the private D-Bus test
 pass. Automatic XPI startup, upgrade, and policy removal are also covered by
 real Thunderbird tests. Options screenshots are written under
 `.test-artifacts/` and are not packaged.
+
+The 0.1.5 notification checks use fresh profiles: new mail updates the badge
+without an add-on notification until the user opts in. The emitted icon data
+matches Thunderbird's installed branding PNG byte for byte, and GNOME receives
+the decoded 128×128 image. Clicking the actual desktop notification restores the
+hidden mail window; opting out stops further alerts while counts still update.
+The settings checkbox and disabled test button are checked in the actual options
+page; opting in enables the button and its test alert uses the same original icon.
 
 The titlebar regression was reproduced with 0.1.2: clicking Thunderbird's own
 close button exited the application. Version 0.1.3 keeps the window alive and
@@ -106,9 +118,13 @@ Test each Thunderbird major version before claiming compatibility with it.
 8. Use two test accounts, nested folders, and virtual/unified folders. Receive,
    read, delete, copy, and move mail. Verify badge totals, exclusion of Junk/Trash
    and descendants, zero unread, 99+, and partial/offline folder behavior.
-9. Receive batches larger than one API page. Verify one grouped generic alert,
-   clickable restoration, no startup alerts for old unread mail, and desktop
-   Do Not Disturb behavior. Disable Thunderbird’s built-in alerts for this check.
+9. Confirm **New-mail notifications** starts unchecked in a fresh profile and
+   the test button is disabled. Receive mail and check that only the badge updates.
+   Opt in, then receive batches larger than one API page. Verify one grouped
+   generic alert, clickable restoration, no startup alerts for old unread mail, and desktop
+   Do Not Disturb behavior. Both new-mail and test alerts must show Thunderbird's
+   original icon. Verify saved on/off preferences survive an upgrade.
+   Disable Thunderbird’s built-in alerts for this check.
 10. Quit through the tray, File menu, and Ctrl+Q. Repeat with an unsaved compose
     window, cancel Quit, and verify close-to-tray still works. Confirm the helper
     exits with Thunderbird and no icon is left behind.

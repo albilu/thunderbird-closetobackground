@@ -6,9 +6,17 @@ const folder = (id, properties = {}) => ({id, accountId: "one", path: `/${id}`, 
 
 test("settings reject corrupted values and discard unknown fields", () => {
   assert.deepEqual(normalizeSettings({enabled: false, showUnread: "false", unknown: true}), {
-    enabled: false, showUnread: true, minimizeToTray: true, closeToTray: true, notifications: true,
+    enabled: false, showUnread: true, minimizeToTray: true, closeToTray: true, notifications: false,
   });
   assert.equal(normalizeSettings(null).enabled, true);
+});
+
+test("new-mail notifications default off and preserve explicit saved preferences", () => {
+  for (const settings of [undefined, null, {}, {notifications: "true"}]) {
+    assert.equal(normalizeSettings(settings).notifications, false);
+  }
+  assert.equal(normalizeSettings({notifications: true}).notifications, true);
+  assert.equal(normalizeSettings({notifications: false}).notifications, false);
 });
 
 test("counts physical mail once, excluding special folders and their descendants", () => {

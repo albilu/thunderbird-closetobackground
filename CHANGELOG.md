@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 — 2026-10-24
+
+- Turn new-mail notifications off by default. Existing saved notification
+  preferences are preserved; notifications remain available as an opt-in setting.
+- Use the original Thunderbird application icon for new-mail and test
+  notifications, loaded from the installed application without bundling artwork.
+- Verify notification opt-in/out, the actual GNOME notification image, and
+  click-to-restore with disposable profiles and both release packages.
+
 ## 0.1.4 — 2026-10-24
 
 - Restore hidden mail windows when Thunderbird receives a focus request from

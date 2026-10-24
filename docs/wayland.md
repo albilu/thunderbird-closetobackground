@@ -14,7 +14,8 @@ the runtime.
   existing hidden window. Dash to Dock's **Minimize window** click action
   minimizes focused Thunderbird and restores it on the next click, including
   after restoring from the tray. An unfocused visible window is focused first.
-- Unread badges, new-mail notifications, and enable/disable settings work.
+- Unread badges, optional new-mail notifications (off by default), and
+  enable/disable settings work. Notifications use Thunderbird's original icon.
 - Disabling the tray extension, losing the helper, or disabling the add-on
   restores hidden windows instead of leaving Thunderbird inaccessible.
 - Normal Quit exits Thunderbird and its helper.
@@ -65,7 +66,7 @@ minimize/restore and a tray restore followed by further minimize/restore clicks.
 Neither the real desktop entry nor the user's running Thunderbird is changed.
 
 ```sh
-npm run test:gnome -- --package dist/0.1.4/thunderbird-closetobackground_0.1.4-1_all.deb
+npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground_0.1.5-1_all.deb
 ```
 
 The validated baseline is Thunderbird 153.4.0 ESR, GNOME Shell 50.4, Dash to Dock

@@ -1,6 +1,8 @@
 import Gio from 'gi://Gio';
+import GdkPixbuf from 'gi://GdkPixbuf';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {dockManager} from 'file:///usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/extension.js';
 
@@ -13,6 +15,8 @@ const XML = `<node><interface name="net.thunderbird.TrayTest">
   <method name="ApplicationState"><arg type="s" direction="out"/></method>
   <method name="ClickDash"/>
   <method name="DockState"><arg type="s" direction="out"/></method>
+  <method name="Notifications"><arg type="s" direction="out"/></method>
+  <method name="ActivateNotification"><arg type="s" direction="in"/></method>
 </interface></node>`;
 
 export default class TrayTestInspector extends Extension {
@@ -70,6 +74,25 @@ export default class TrayTestInspector extends Extension {
       windows: icon.getInterestingWindows().length,
       clickAction: new Gio.Settings({schema_id: 'org.gnome.shell.extensions.dash-to-dock'}).get_string('click-action'),
     } : null);
+  }
+  Notifications() {
+    return JSON.stringify(Main.messageTray.getSources().flatMap(source =>
+      source.notifications.map(notification => ({
+        title: notification.title,
+        body: notification.body,
+        imageWidth: notification.gicon instanceof GdkPixbuf.Pixbuf ? notification.gicon.width : 0,
+        imageHeight: notification.gicon instanceof GdkPixbuf.Pixbuf ? notification.gicon.height : 0,
+      }))));
+  }
+  ActivateNotification(title) {
+    for (const source of Main.messageTray.getSources()) {
+      const notification = source.notifications.find(item => item.title === title);
+      if (notification) {
+        notification.activate();
+        return;
+      }
+    }
+    throw new Error('The test notification is missing');
   }
   disable() {
     this.exported?.unexport();

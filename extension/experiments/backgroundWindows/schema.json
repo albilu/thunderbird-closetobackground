@@ -4,6 +4,14 @@
     "description": "Linux main-window visibility with fail-safe cleanup.",
     "functions": [
       {
+        "name": "getApplicationIcon",
+        "type": "function",
+        "description": "Return the installed Thunderbird branding icon as a data URL for notifications.",
+        "async": true,
+        "parameters": [],
+        "returns": {"type": "string"}
+      },
+      {
         "name": "configure",
         "type": "function",
         "async": true,

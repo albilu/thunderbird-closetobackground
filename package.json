@@ -1,6 +1,6 @@
 {
   "name": "thunderbird-closetobackground",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Linux-first Thunderbird close-to-tray add-on and native helper",
   "scripts": {

@@ -5,7 +5,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   closeToTray: true,
   minimizeToTray: true,
   showUnread: true,
-  notifications: true,
+  notifications: false,
 });
 
 export function normalizeSettings(value = {}) {

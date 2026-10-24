@@ -113,8 +113,11 @@ async function refreshUnread() {
 async function notify(count, test = false) {
   if (!settings.enabled || !settings.notifications) return;
   try {
+    const iconUrl = await api.backgroundWindows.getApplicationIcon();
+    // Loading the installed artwork is asynchronous; respect a disable while it loads.
+    if (!settings.enabled || !settings.notifications) return;
     await api.notifications.create("close-to-background-mail", {type: "basic",
-      iconUrl: api.runtime.getURL("icons/mail.svg"),
+      iconUrl,
       title: test ? "Close to Background" : "New mail in Thunderbird",
       message: test ? "Notifications are ready. Click to show Thunderbird." :
         `${count === 1 ? "1 new message" : `${count} new messages`}. Click to show Thunderbird.`});

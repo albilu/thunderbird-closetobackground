@@ -19,7 +19,8 @@ Thunderbird mail/folder events ──→ persistent MailExtension background
 The extension owns preferences, counts, notifications, and all Thunderbird
 actions. A persistent Manifest V2 background page keeps the native connection
 alive. The only privileged code is `backgroundWindows`, which observes main
-window lifecycle and manipulates `nsIBaseWindow.visibility`. A per-window record
+window lifecycle, manipulates `nsIBaseWindow.visibility`, and exposes the installed
+Thunderbird branding icon for notifications. A per-window record
 preserves its last non-minimized state. Hiding never closes the window, shuts down
 mail checking, or stores a hidden state across launches.
 The main window's `minimize()` command is intercepted and restored on unload:
@@ -103,11 +104,18 @@ eight folder summaries are requested concurrently. Events are debounced, refresh
 are serialized, and a periodic refresh corrects missed events. A count that cannot
 be read is reported as partial rather than silently presented as complete.
 
-New-mail notifications use `messages.onNewMailReceived`, skip read/junk messages,
+New-mail notifications are off by default; existing saved boolean preferences
+are preserved on upgrade. Users can opt in from the add-on settings.
+Notifications use `messages.onNewMailReceived`, skip read/junk messages,
 consume paginated lists, and explicitly abort lists when disabled. A bounded
 five-minute cache deduplicates message IDs. Bursts are grouped over 800 ms. Generic
-notification text never includes sender names or subjects. Existing Thunderbird
-notification preferences remain user-controlled.
+notification text never includes sender names or subjects. Both new-mail and
+test notifications use Thunderbird's original installed branding icon. The
+Experiment reads a fixed local branding resource and returns a PNG data URL,
+since the notification's extension principal cannot load privileged chrome URLs.
+No artwork is bundled or fetched from the network, and notification disable is
+checked again after the icon loads. Existing Thunderbird notification preferences
+remain user-controlled.
 
 ## Boundaries
 

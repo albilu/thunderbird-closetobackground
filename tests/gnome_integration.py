@@ -18,9 +18,10 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 
 from thunderbird_integration import Marionette, ROOT, install
-from mail_fixture import CREATE_MAIL, MARK_READ
+from mail_fixture import CREATE_MAIL, ADD_MAIL, MARK_READ
 from package_support import prepare_package, prepare_policy, policy_test_command
 from gi.repository import Gio, GLib
 
@@ -127,7 +128,7 @@ def main():
                      'mail.shell.checkDefaultClient': False, 'mailnews.start_page.enabled': False,
                      'mailnews.start_page.override_url': '', 'app.update.auto': False,
                      'extensions.update.enabled': False, 'datareporting.policy.dataSubmissionEnabled': False,
-                     'toolkit.telemetry.enabled': False}
+                     'toolkit.telemetry.enabled': False, 'mail.biff.show_alert': False}
             automatic = package_path.suffix == '.deb'
             if automatic:
                 policy_path = prepare_policy(work, xpi_path)
@@ -310,9 +311,47 @@ def main():
               return extension.apiManager.getAPI('notifications', extension, 'addon_parent')
                 .notificationsMap.get('close-to-background-mail')?.options ?? null;
             """
+            time.sleep(1.2)
+            assert client.script(notification_script) is None, 'New-mail notifications must default off'
+            print('PASS fresh profile counts mail without sending new-mail notifications', flush=True)
+            set_notifications = prelude + """
+              const storage = extension.apiManager.getAPI('storage', extension, 'addon_parent').getAPI(view).storage;
+              await storage.local.callMethodInParentProcess('set', [{settings: {notifications: arguments[0]}}]);
+              return true;
+            """
+            client.script(set_notifications, [True])
+            time.sleep(.3)
+            assert client.script(ADD_MAIL) == {'inbox': 6, 'trash': 2}
+            wait(lambda: '6 unread' in tray_title(), 'unread count after opting into notifications')
             notification = wait(lambda: client.script(notification_script), 'new-mail notification')
             assert notification['message'] == '3 new messages. Click to show Thunderbird.', notification
-            print('PASS real folder counts and grouped private new-mail notification', flush=True)
+            assert notification['iconUrl'].startswith('data:image/png;base64,'), notification['iconUrl'].split(',', 1)[0]
+            with zipfile.ZipFile('/usr/lib/thunderbird/omni.ja') as resources:
+                assert base64.b64decode(notification['iconUrl'].split(',', 1)[1]) == resources.read(
+                    'chrome/messenger/content/branding/icon128.png'), 'Notification must use original Thunderbird artwork'
+
+            def desktop_notification():
+                value = call('org.gnome.Shell', '/net/thunderbird/TrayTest', 'net.thunderbird.TrayTest', 'Notifications')
+                return next((item for item in json.loads(value.unpack()[0])
+                             if item['title'] == 'New mail in Thunderbird'), None)
+
+            desktop = wait(desktop_notification, 'actual GNOME new-mail notification')
+            assert desktop['body'] == notification['message'], desktop
+            assert (desktop['imageWidth'], desktop['imageHeight']) == (128, 128), desktop
+            print('PASS opted-in grouped private notification with original Thunderbird icon decoded by GNOME', flush=True)
+            client.script(prelude + 'win.document.title = arguments[0]; await api.hideAll(); return true;', [TITLE])
+            wait(lambda: not visible(), 'hidden before notification click')
+            call('org.gnome.Shell', '/net/thunderbird/TrayTest', 'net.thunderbird.TrayTest',
+                 'ActivateNotification', GLib.Variant('(s)', ('New mail in Thunderbird',)))
+            wait(visible, 'notification click restores Thunderbird')
+            print('PASS clicking the desktop notification restores Thunderbird', flush=True)
+            client.script(set_notifications, [False])
+            time.sleep(.3)
+            assert client.script(ADD_MAIL) == {'inbox': 9, 'trash': 3}
+            wait(lambda: '9 unread' in tray_title(), 'unread updates with notifications disabled')
+            time.sleep(1.2)
+            assert client.script(notification_script) is None, 'Disabled notifications must stay silent'
+            print('PASS opting out stops new-mail notifications without disabling unread counts', flush=True)
             assert client.script(MARK_READ) == 0
             wait(lambda: '0 unread' in tray_title(), 'badge reset after marking mail read')
             print('PASS marking mail read updates badge to zero', flush=True)
@@ -338,6 +377,31 @@ def main():
             artifacts = ROOT / '.test-artifacts'
             artifacts.mkdir(exist_ok=True)
             (artifacts / f'gnome-options-{package_path.suffix.lstrip(".")}.png').write_bytes(base64.b64decode(screenshot))
+
+            def options_script(source):
+                # Thunderbird tabs are not exposed as WebDriver window handles.
+                # Target the selected options browser's existing Marionette actor.
+                return client.script(prelude + """
+                  const browser = win.document.getElementById('tabmail').currentTabInfo.browser;
+                  const actor = browser.browsingContext.currentWindowGlobal.getActor('MarionetteCommands');
+                  return await actor.executeScript(arguments[0], [], {sandboxName: 'system', newSandbox: true});
+                """, [source])
+
+            options_state = options_script("""
+              return {url: location.href,
+                notifications: document.querySelector('input[name="notifications"]')?.checked,
+                testDisabled: document.querySelector('#testNotification')?.disabled};
+            """)
+            assert options_state['notifications'] is False and options_state['testDisabled'] is True, options_state
+            options_script('document.querySelector(\'input[name="notifications"]\').click(); return true;')
+            wait(lambda: options_script("return !document.querySelector('#testNotification').disabled;"),
+                 'notification test button enabled after opting in')
+            options_script("document.querySelector('#testNotification').click(); return true;")
+            test_notification = wait(lambda: client.script(notification_script), 'notification from settings test button')
+            assert test_notification['title'] == 'Close to Background', test_notification['title']
+            assert test_notification['iconUrl'] == notification['iconUrl'], 'Test alerts must also use Thunderbird artwork'
+            client.script(set_notifications, [False])
+            print('PASS notifications checkbox, disabled test button, opt-in, and test notification icon', flush=True)
             client.script(prelude + 'win.document.title = arguments[0]; await api.hideAll(); return true;', [TITLE])
             wait(lambda: not visible(), 'hidden before GNOME tray loss')
             call('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions', 'org.gnome.Shell.Extensions',

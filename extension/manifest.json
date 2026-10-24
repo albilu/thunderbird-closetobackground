@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Close to Background",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Keep Thunderbird running in the Linux system tray, with unread badges and new-mail notifications.",
   "browser_specific_settings": {
     "gecko": {

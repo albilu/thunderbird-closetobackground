@@ -1,4 +1,4 @@
-/* global ChromeUtils, Services, Ci, Cc */
+/* global ChromeUtils, Services, Ci, Cc, Cu, fetch, FileReader */
 // An IIFE keeps experiment globals isolated from other add-ons.
 var backgroundWindows = (() => {
   const {ExtensionCommon} = ChromeUtils.importESModule("resource://gre/modules/ExtensionCommon.sys.mjs");
@@ -172,6 +172,20 @@ var backgroundWindows = (() => {
         this.restore();
       }});
       return {backgroundWindows: {
+        getApplicationIcon: async () => {
+          // Branding chrome URLs cannot be loaded by the notification's extension
+          // principal. Return only Thunderbird's own artwork as a portable data URL.
+          Cu.importGlobalProperties(["fetch", "FileReader"]);
+          const response = await fetch("chrome://branding/content/icon128.png");
+          if (!response.ok) throw new Error("Thunderbird's application icon could not be loaded.");
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob.slice(0, blob.size, "image/png"));
+          });
+        },
         configure: async configuration => {
           if (Services.appinfo.OS !== "Linux" && configuration.enabled) {
             throw new Error("Close to Background supports Linux only.");

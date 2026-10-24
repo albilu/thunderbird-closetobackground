@@ -2,14 +2,14 @@
 
 ## Release artifacts
 
-`python3 scripts/build.py` builds everything offline in `dist/0.1.4/`:
+`python3 scripts/build.py` builds everything offline in `dist/0.1.5/`:
 
 | File | Contents |
 | --- | --- |
-| `thunderbird-closetobackground_0.1.4-1_all.deb` | System helper, native-host registration, automatically installed XPI, diagnostic command, manual and documentation |
-| `thunderbird-closetobackground-0.1.4-linux.tar.gz` | Small per-user install bundle, XPI, installer/uninstaller, diagnostics and setup documentation |
-| `thunderbird-closetobackground-0.1.4-source.tar.gz` | Rebuildable source, packaging definitions, tests and developer documentation |
-| `thunderbird-closetobackground-0.1.4.xpi` | Thunderbird add-on only; requires the matching helper |
+| `thunderbird-closetobackground_0.1.5-1_all.deb` | System helper, native-host registration, automatically installed XPI, diagnostic command, manual and documentation |
+| `thunderbird-closetobackground-0.1.5-linux.tar.gz` | Small per-user install bundle, XPI, installer/uninstaller, diagnostics and setup documentation |
+| `thunderbird-closetobackground-0.1.5-source.tar.gz` | Rebuildable source, packaging definitions, tests and developer documentation |
+| `thunderbird-closetobackground-0.1.5.xpi` | Thunderbird add-on only; requires the matching helper |
 | `SHA256SUMS` | SHA-256 digests of the four artifacts above |
 
 The runtime archives contain no test profiles, screenshots, development caches,
@@ -19,7 +19,7 @@ needed to build. Building `.deb` requires the `dpkg-deb` tool from `dpkg`.
 
 ```sh
 python3 scripts/build.py
-cd dist/0.1.4
+cd dist/0.1.5
 sha256sum -c SHA256SUMS
 ```
 
@@ -32,7 +32,7 @@ python3 scripts/build.py --formats xpi,tar,source
 ## Debian/Ubuntu installation
 
 ```sh
-sudo apt install ./thunderbird-closetobackground_0.1.4-1_all.deb
+sudo apt install ./thunderbird-closetobackground_0.1.5-1_all.deb
 sudo apt install gnome-shell-extension-appindicator
 ```
 
@@ -126,13 +126,13 @@ Install Python 3.10+, PyGObject with GLib and GdkPixbuf introspection, native Th
 host using your distribution packages. Then:
 
 ```sh
-tar -xzf thunderbird-closetobackground-0.1.4-linux.tar.gz
-cd thunderbird-closetobackground-0.1.4
+tar -xzf thunderbird-closetobackground-0.1.5-linux.tar.gz
+cd thunderbird-closetobackground-0.1.5
 ./install.sh
 /usr/bin/python3 scripts/doctor.py
 ```
 
-Install the included `thunderbird-closetobackground-0.1.4.xpi` through Thunderbird.
+Install the included `thunderbird-closetobackground-0.1.5.xpi` through Thunderbird.
 Do not use sudo for this installer. It copies the helper into
 `~/.local/share/thunderbird-close-to-background/` and registers it in
 `~/.mozilla/native-messaging-hosts/`. The runtime does not depend on the extracted
@@ -176,8 +176,8 @@ npm test
 npm run test:dbus
 npm run test:packages
 npm run test:policies
-npm run test:gnome -- --package dist/0.1.4/thunderbird-closetobackground_0.1.4-1_all.deb
-npm run test:gnome -- --package dist/0.1.4/thunderbird-closetobackground-0.1.4-linux.tar.gz
+npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground_0.1.5-1_all.deb
+npm run test:gnome -- --package dist/0.1.5/thunderbird-closetobackground-0.1.5-linux.tar.gz
 ```
 
 Package lifecycle tests require `dpkg` and `fakeroot`. Package tests inspect
